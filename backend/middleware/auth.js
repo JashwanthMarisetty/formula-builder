@@ -26,21 +26,14 @@ const auth = async (req, res, next) => {
     next();
   } catch (error) {
     console.error("Auth middleware error:", error);
-    res.status(401).json({ message: "Token is not valid" });
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({ message: 'Invalid token' });
+    }
+    if (error.name === 'TokenExpiredError') {
+      return res.status(401).json({ message: 'Token expired' });
+    }
+    res.status(500).json({ message: 'Server error during authentication' });
   }
 };
 
-const adminAuth = async (req, res, next) => {
-  try {
-    await auth(req, res, () => {
-      if (req.user.role !== "admin") {
-        return res.status(403).json({ message: "Admin access required" });
-      }
-      next();
-    });
-  } catch (error) {
-    res.status(401).json({ message: "Admin authentication failed" });
-  }
-};
-
-module.exports = { auth, adminAuth };
+module.exports = { auth };
