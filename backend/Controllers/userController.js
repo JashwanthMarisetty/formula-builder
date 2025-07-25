@@ -4,7 +4,7 @@ const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const { auth } = require("../middleware/auth");
 const { validationResult } = require("express-validator");
-const { generateToken } = require("../utils/jwt");
+const { generateToken, verifyRefreshToken, generateRefreshToken } = require("../utils/jwt");
 
 // Register a new user
 const register = async (req, res) => {
@@ -23,11 +23,10 @@ const register = async (req, res) => {
       return res.status(400).json({ message: "User already exists" });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
     const user = new User({
       name,
       email,
-      password: hashedPassword,
+      password, // Let the model's pre-save middleware handle hashing
     });
 
     await user.save();
@@ -75,7 +74,7 @@ const login = async (req, res) => {
     await user.save();
 
     const token = generateToken(user._id);
-    const refreshToken = generateToken(user._id, "30d"); // Refresh token valid for 30 days
+    const refreshToken = generateRefreshToken(user._id); // Refresh token valid for 30 days
     
     const userResponse = {
       id: user._id,
@@ -147,17 +146,13 @@ const forgotPassword = async (req, res) => {
     user.passwordResetExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
     await user.save();
 
-    // Send email
-    try {
-      await sendPasswordResetEmail(user.email, resetToken);
-      res.json({
-        success: true,
-        message: "Password reset email sent",
-      });
-    } catch (emailError) {
-      console.error("Email sending error:", emailError);
-      res.status(500).json({ message: "Error sending reset email" });
-    }
+    // TODO: Implement email functionality
+    // For now, just return the token (in production, this should be sent via email)
+    res.json({
+      success: true,
+      message: "Password reset token generated. Check console for token (implement email service)",
+      resetToken: resetToken, // Remove this in production
+    });
   } catch (error) {
     console.error("Forgot password error:", error);
     res.status(500).json({ message: "Server error", error: error.message });

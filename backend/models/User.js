@@ -81,7 +81,7 @@ userSchema.methods.comparePassword = async function (candidatePassword) {
 userSchema.methods.generateVerificationToken = function () {
   const token = crypto.randomBytes(32).toString("hex");
   this.verificationToken = token;
-  this.emailVerificationExpires = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
+  this.verificationExpires = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
   return token;
 };
 
@@ -94,3 +94,5 @@ userSchema.methods.generatePasswordResetToken = function () {
 };
 
 const User = mongoose.model("User", userSchema);
+
+module.exports = User;
