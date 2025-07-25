@@ -200,5 +200,25 @@ const resetPassword = async (req, res) => {
   }
 };
 
+const getMe = async (req, res) => {
+  // Get current user details. This endpoint is used to retrieve the authenticated user's details.
+  try {
+    const user = await User.findById(req.user.id).select("-password");
+    res.json({
+      success: true,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        avatar: user.avatar,
+        emailVerified: user.emailVerified,
+        role: user.role,
+      },
+    });
+  } catch (error) {
+    console.error("Get me error:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
 
-module.exports = { register , login , refreshToken , forgotPassword , resetPassword };
+module.exports = { register , login , refreshToken , forgotPassword , resetPassword , getMe };
