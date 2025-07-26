@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { FormInputIcon as FormIcon, Eye, EyeOff } from 'lucide-react';
-import { FcGoogle } from 'react-icons/fc';
+import { FormInputIcon as FormIcon, Eye, EyeOff, Chrome } from 'lucide-react';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -32,7 +31,8 @@ const Login = () => {
         navigate('/dashboard');
       }
     } catch (err) {
-      setError('Invalid email or password');
+      console.error('Login error:', err);
+      setError(err.message || 'Invalid email or password');
     } finally {
       setIsLoading(false);
     }
@@ -138,7 +138,7 @@ const Login = () => {
               onClick={handleGoogleSignIn}
               className="w-full flex items-center justify-center px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg shadow-sm bg-white text-sm sm:text-base font-medium text-gray-700 hover:bg-gray-50 transition-colors"
             >
-              <FcGoogle className="w-4 h-4 sm:w-5 sm:h-5 mr-2 text-blue-500" />
+              <Chrome className="w-4 h-4 sm:w-5 sm:h-5 mr-2 text-blue-500" />
               Sign in with Google
             </button>
           </form>

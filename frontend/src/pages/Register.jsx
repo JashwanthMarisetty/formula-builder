@@ -1,8 +1,7 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-import { FormInputIcon as FormIcon, Eye, EyeOff } from "lucide-react";
-import { FcGoogle } from "react-icons/fc";
+import { FormInputIcon as FormIcon, Eye, EyeOff, Chrome } from "lucide-react";
 
 const Register = () => {
   const [formData, setFormData] = useState({
@@ -31,7 +30,7 @@ const Register = () => {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
+    e.preventDefault(); 
     setIsLoading(true);
     setError("");
 
@@ -48,7 +47,11 @@ const Register = () => {
     }
 
     try {
-      const result = await register(
+      //what will this do , explain clearly 
+      // This function will call the register method from AuthContext to handle user registration
+      // It will pass the email, password, and name from the formData state
+      
+      const result = await register( // Call the register function from AuthContext, passing the necessary data 
         formData.email,
         formData.password,
         formData.name
@@ -57,8 +60,9 @@ const Register = () => {
         navigate("/dashboard");
       }
     } catch (err) {
-      setError("Registration failed. Please try again.");
-    } finally {
+      console.error('Registration error:', err);
+      setError(err.message || "Registration failed. Please try again.");
+    } finally {  // Ensure loading state is reset
       setIsLoading(false);
     }
   };
@@ -199,7 +203,7 @@ const Register = () => {
               onClick={handleGoogleSignUp}
               className="w-full flex items-center justify-center px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg shadow-sm bg-white text-sm sm:text-base font-medium text-gray-700 hover:bg-gray-50 transition-colors"
             >
-              <FcGoogle className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
+              <Chrome className="w-4 h-4 sm:w-5 sm:h-5 mr-2 text-blue-500" />
               Sign up with Google
             </button>
           </form>

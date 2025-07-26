@@ -1,21 +1,10 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { authAPI } from '../services/api';
 
 const AuthContext = createContext(); 
 
-// is useAuth a customhook ? 
-// Yes, useAuth is a custom hook that provides access to the authentication context.
-// It allows components to access authentication state and methods like login, register, and logout.
-// It should be used within an AuthProvider to ensure the context is available.
-
 export const useAuth = () => {
-  const context = useContext(AuthContext); // useContext is a React hook that allows you to access the context value. 
-  // explain what the above line does clearly
-  // It retrieves the current value of AuthContext, which includes user information and authentication methods.
-  // If context is null, it means useAuth is being used outside of an AuthProvider.
-  // This will throw an error if useAuth is called outside of AuthProvider.
-  // This is important because it ensures that components using useAuth have access to the authentication state and methods.
-  // If context is null, it means useAuth is being used outside of AuthProvider.
-  // This will throw an error if useAuth is called outside of AuthProvider.
+  const context = useContext(AuthContext);
   
   if (!context) {
     throw new Error('useAuth must be used within an AuthProvider');
@@ -30,53 +19,92 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     // Check if user is logged in on app start
-    const savedUser = localStorage.getItem('formula_user');
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
-      setIsAuthenticated(true);
-    }
-    setIsLoading(false);
+
+    //what does the below function do , explain very clearly 
+    // It initializes authentication state by checking local storage for tokens, 
+    // verifies the token by fetching user data, and updates the context state accordingly.
+
+    const initializeAuth = async () => { 
+      const token = localStorage.getItem('formula_token');
+      const savedUser = localStorage.getItem('formula_user');
+      
+      if (token && savedUser) {
+        try {
+          // Verify token is still valid by fetching user data
+          const response = await authAPI.getMe();
+          if (response.success) {
+            setUser(response.user);
+            setIsAuthenticated(true);
+            // Update saved user data
+            localStorage.setItem('formula_user', JSON.stringify(response.user));
+          }
+        } catch (error) {
+          // Token is invalid, clear stored data
+          localStorage.removeItem('formula_token');
+          localStorage.removeItem('formula_refresh_token');
+          localStorage.removeItem('formula_user');
+        }
+      }
+      setIsLoading(false);
+    };
+
+    initializeAuth();
   }, []);
 
-  // Give clearly what the below function does 
-  // The login function simulates a user login by creating a mock user object with an ID, email, name, and avatar.
-  // It sets the user state, updates the authentication status, and saves the user data to local storage.
-  // In a real application, this function would typically make an API call to authenticate the user.
-  
-  const login = (email, password) => { 
-    // Mock login - in real app, this would be an API call
-    const mockUser = {
-      id: Date.now().toString(),
-      email,
-      name: email.split('@')[0],
-      avatar: `https://images.pexels.com/photos/91227/pexels-photo-91227.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1`
-    };
-    
-    setUser(mockUser);
-    setIsAuthenticated(true);
-    localStorage.setItem('formula_user', JSON.stringify(mockUser));
-    return { success: true };
+  const login = async (email, password) => {
+    try {
+      const response = await authAPI.login({ email, password });
+      
+      if (response.success) {
+        const { user, token, refreshToken } = response;
+        
+        // Store tokens and user data
+        localStorage.setItem('formula_token', token);
+        localStorage.setItem('formula_refresh_token', refreshToken);
+        localStorage.setItem('formula_user', JSON.stringify(user));
+        
+        setUser(user);
+        setIsAuthenticated(true);
+        
+        return { success: true };
+      } else {
+        throw new Error(response.message || 'Login failed');
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      throw new Error(error.response?.data?.message || error.message || 'Login failed');
+    }
   };
 
-  const register = (email, password, name) => {
-    // Mock registration - in real app, this would be an API call
-    const mockUser = {
-      id: Date.now().toString(),
-      email,
-      name,
-      avatar: `https://images.pexels.com/photos/91227/pexels-photo-91227.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1`
-    };
-    
-    setUser(mockUser);
-    setIsAuthenticated(true);
-    localStorage.setItem('formula_user', JSON.stringify(mockUser));
-    return { success: true };
+  const register = async (email, password, name) => {
+    try {
+      const response = await authAPI.register({ 
+        name, 
+        email, 
+        password 
+      });
+      
+      if (response.success) {
+        // After successful registration, log the user in
+        return await login(email, password);
+      } else {
+        throw new Error(response.message || 'Registration failed');
+      }
+    } catch (error) {
+      console.error('Registration error:', error);
+      throw new Error(error.response?.data?.message || error.message || 'Registration failed');
+    }
   };
 
-  const logout = () => {
-    setUser(null);
-    setIsAuthenticated(false);
-    localStorage.removeItem('formula_user');
+  const logout = async () => {
+    try {
+      await authAPI.logout();
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      setUser(null);
+      setIsAuthenticated(false);
+    }
   };
 
   const value = {
