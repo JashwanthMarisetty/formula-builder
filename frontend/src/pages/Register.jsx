@@ -14,12 +14,24 @@ const Register = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const { register } = useAuth();
+  const { register, googleSignIn } = useAuth();
   const navigate = useNavigate();
 
-  const handleGoogleSignUp = () => {
-    console.log("Google Sign Up clicked - Backend integration needed");
-    // Google OAuth to be integrated here
+  const handleGoogleSignUp = async () => {
+    setIsLoading(true);
+    setError("");
+    
+    try {
+      const result = await googleSignIn();
+      if (result.success) {
+        navigate("/dashboard");
+      }
+    } catch (err) {
+      console.error('Google Sign Up error:', err);
+      setError(err.message || "Google Sign Up failed. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleChange = (e) => {

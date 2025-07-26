@@ -10,14 +10,24 @@ const Login = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   
-  const { login } = useAuth();
+  const { login, googleSignIn } = useAuth();
   const navigate = useNavigate();
 
-  const handleGoogleSignIn = () => {
-    // This will be handled by backend integration
-    console.log('Google Sign In clicked - Backend integration needed');
-    // For now, simulate successful login
-    // In real implementation, this would redirect to Google OAuth
+  const handleGoogleSignIn = async () => {
+    setIsLoading(true);
+    setError('');
+    
+    try {
+      const result = await googleSignIn();
+      if (result.success) {
+        navigate('/dashboard');
+      }
+    } catch (err) {
+      console.error('Google Sign In error:', err);
+      setError(err.message || 'Google Sign In failed. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleSubmit = async (e) => {

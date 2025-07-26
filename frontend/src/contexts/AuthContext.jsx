@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { authAPI } from '../services/api';
+import { auth, provider, signInWithPopup } from '../services/firebaseConfig';
 
 const AuthContext = createContext(); 
 
@@ -96,9 +97,60 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const googleSignIn = async () => {
+    try {
+      setIsLoading(true);
+      
+      const result = await signInWithPopup(auth, provider);
+      const firebaseUser = result.user;
+      
+      
+      // Create user object with Firebase data
+      const userData = {
+        id: firebaseUser.uid,
+        name: firebaseUser.displayName,
+        email: firebaseUser.email,
+        photoURL: firebaseUser.photoURL,
+        provider: 'google'
+      };
+      
+      // You can optionally send this data to your backend to create/sync user
+      // For now, we'll just store it locally
+      localStorage.setItem('formula_user', JSON.stringify(userData));
+      localStorage.setItem('formula_token', firebaseUser.accessToken || 'google-auth-token');
+      
+      setUser(userData);
+      setIsAuthenticated(true);
+      
+      return { success: true, user: userData };
+    } catch (error) {
+      console.error('Google Sign-In error occurred:', error);
+      
+      // Provide more specific error messages
+      let errorMessage = 'Google Sign-In failed';
+      if (error.code === 'auth/popup-closed-by-user') {
+        errorMessage = 'Sign-in was cancelled. Please try again.';
+      } else if (error.code === 'auth/popup-blocked') {
+        errorMessage = 'Popup was blocked by browser. Please allow popups and try again.';
+      } else if (error.code === 'auth/operation-not-allowed') {
+        errorMessage = 'Google Sign-In is not enabled for this project.';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      throw new Error(errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const logout = async () => {
     try {
       await authAPI.logout();
+      // Also sign out from Firebase if using Google auth
+      if (auth.currentUser) {
+        await auth.signOut();
+      }
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
@@ -113,7 +165,8 @@ export const AuthProvider = ({ children }) => {
     isLoading,
     login,
     register,
-    logout
+    logout,
+    googleSignIn
   };
 
   return (
