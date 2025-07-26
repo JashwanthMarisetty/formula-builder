@@ -18,8 +18,19 @@ const userSchema = new mongoose.Schema({
   },
   password: {
     type: String,
-    required: true,
+    required: function() {
+      return this.provider !== 'google';
+    },
     minlength: 6,
+  },
+  firebaseUid: {
+    type: String,
+    sparse: true, // Allows multiple null values but ensures uniqueness for non-null values
+  },
+  provider: {
+    type: String,
+    enum: ['local', 'google'],
+    default: 'local',
   },
   avatar: {
     type: String,

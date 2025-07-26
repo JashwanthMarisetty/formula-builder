@@ -99,6 +99,11 @@ export const authAPI = {
     const response = await api.post('/users/reset-password', resetData);
     return response.data;
   },
+
+  googleSignIn: async (googleUserData) => {
+    const response = await api.post('/users/google-signin', googleUserData);
+    return response.data;
+  },
 };
 
 export default api;

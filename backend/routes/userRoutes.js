@@ -7,6 +7,7 @@ const {
   forgotPassword,
   resetPassword,
   getMe,
+  googleSignIn,
 } = require("../Controllers/userController");
 const {
   registerValidation,
@@ -18,6 +19,7 @@ const { auth } = require("../middleware/auth");
 
 router.post("/register", registerValidation, register);
 router.post("/login", loginValidation, login);
+router.post("/google-signin", googleSignIn);
 router.post("/forgot-password", forgotPasswordValidation, forgotPassword);
 router.post("/reset-password", resetPasswordValidation, resetPassword);
 router.post("/refresh-token", refreshToken);

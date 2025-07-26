@@ -101,28 +101,37 @@ export const AuthProvider = ({ children }) => {
     try {
       setIsLoading(true);
       
+      // Step 1: Authenticate with Firebase/Google
       const result = await signInWithPopup(auth, provider);
       const firebaseUser = result.user;
       
-      
-      // Create user object with Firebase data
-      const userData = {
-        id: firebaseUser.uid,
-        name: firebaseUser.displayName,
+      // Step 2: Send Google user data to your backend
+      const googleUserData = {
+        firebaseUid: firebaseUser.uid,
         email: firebaseUser.email,
+        name: firebaseUser.displayName,
         photoURL: firebaseUser.photoURL,
         provider: 'google'
       };
       
-      // You can optionally send this data to your backend to create/sync user
-      // For now, we'll just store it locally
-      localStorage.setItem('formula_user', JSON.stringify(userData));
-      localStorage.setItem('formula_token', firebaseUser.accessToken || 'google-auth-token');
+      // Step 3: Call backend to handle Google sign-in (creates user if doesn't exist)
+      const response = await authAPI.googleSignIn(googleUserData);
       
-      setUser(userData);
-      setIsAuthenticated(true);
-      
-      return { success: true, user: userData };
+      if (response.success) {
+        const { user, token, refreshToken } = response;
+        
+        // Step 4: Store tokens and user data (same as regular login)
+        localStorage.setItem('formula_token', token);
+        localStorage.setItem('formula_refresh_token', refreshToken);
+        localStorage.setItem('formula_user', JSON.stringify(user));
+        
+        setUser(user);
+        setIsAuthenticated(true);
+        
+        return { success: true, user };
+      } else {
+        throw new Error(response.message || 'Google Sign-In failed');
+      }
     } catch (error) {
       console.error('Google Sign-In error occurred:', error);
       

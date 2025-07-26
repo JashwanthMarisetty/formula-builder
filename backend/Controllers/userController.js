@@ -216,4 +216,48 @@ const getMe = async (req, res) => {
   }
 };
 
-module.exports = { register , login , refreshToken , forgotPassword , resetPassword , getMe };
+// Google Sign-In
+const googleSignIn = async (req, res) => {
+  try {
+    const { firebaseUid, email, name, photoURL } = req.body;
+
+    // Check if user already exists by email or firebaseUid
+    let user = await User.findOne({ $or: [{ email }, { firebaseUid }] });
+
+    if (!user) {
+      // New Google user; create them in the database
+      user = new User({
+        firebaseUid,
+        email,
+        name,
+        avatar: photoURL,
+        provider: 'google',
+        password: 'google-oauth', // Password not needed for Google Sign-In
+        emailVerified: true // Google users have verified emails
+      });
+      await user.save();
+    }
+
+    // Generate tokens for the user
+    const token = generateToken(user._id);
+    const refreshToken = generateRefreshToken(user._id);
+
+    res.json({
+      success: true,
+      message: "Google Sign-In successful",
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        avatar: user.avatar
+      },
+      token,
+      refreshToken,
+    });
+  } catch (error) {
+    console.error("Google Sign-In error:", error);
+    res.status(500).json({ message: "Google Sign-In failed", error: error.message });
+  }
+};
+
+module.exports = { register , login , refreshToken , forgotPassword , resetPassword , getMe, googleSignIn };
