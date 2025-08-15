@@ -68,8 +68,7 @@ const MyForms = () => {
 
     // Filter by search term
     const searchMatch = !searchTerm || 
-      form.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (form.description && form.description.toLowerCase().includes(searchTerm.toLowerCase()));
+      form.name.toLowerCase().includes(searchTerm.toLowerCase());
 
     // Filter by status
     const statusMatch = statusFilter === 'all' || form.status === statusFilter;
@@ -296,7 +295,7 @@ const MyForms = () => {
                 <Search className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
                 <input
                   type="text"
-                  placeholder="Search forms by name or description..."
+                  placeholder="Search forms by name..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
@@ -627,9 +626,6 @@ const MyForms = () => {
                           <h3 className="font-semibold text-gray-900 text-lg mb-2 pr-8 group-hover:text-purple-600 transition-colors">
                             {form.name}
                           </h3>
-                          <p className="text-gray-600 text-sm line-clamp-2">
-                            {form.description || 'No description'}
-                          </p>
                         </div>
 
                         {/* Enhanced Stats */}

@@ -485,9 +485,6 @@ const FormPreview = () => {
         <div className="bg-white rounded-lg shadow-sm p-6 sm:p-8">
           <div className="mb-8">
             <h1 className="text-2xl font-bold text-gray-900 mb-2">{form.name}</h1>
-            {form.description && (
-              <p className="text-gray-600">{form.description}</p>
-            )}
             {visiblePages.length > 1 && (
               <div className="mt-4">
                 <div className="flex items-center justify-between text-sm text-gray-500">

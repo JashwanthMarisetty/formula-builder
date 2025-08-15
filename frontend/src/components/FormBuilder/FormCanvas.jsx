@@ -102,9 +102,6 @@ const FormCanvas = ({
         {/* Form Header */}
         <div className="bg-white rounded-lg shadow-sm p-4 sm:p-6 mb-4 sm:mb-6">
           <h1 className="text-lg sm:text-2xl font-bold text-gray-900 mb-2">{form.name}</h1>
-          {form.description && (
-            <p className="text-sm sm:text-base text-gray-600">{form.description}</p>
-          )}
         </div>
 
         {/* Form Fields */}

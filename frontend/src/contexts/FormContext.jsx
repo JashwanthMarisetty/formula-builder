@@ -62,7 +62,6 @@ export const FormProvider = ({ children }) => {
     const newForm = {
       id: uuidv4(),
       name: formData.name || 'Untitled Form',
-      description: formData.description || '',
       fields: [],
       pages: [{ id: 'page-1', name: 'Page 1', fields: [] }],
       status: 'draft',

@@ -435,7 +435,7 @@ const Dashboard = () => {
                         {form.status}
                       </span>
                     </div>
-                    <p className="text-xs sm:text-sm text-gray-600 mb-3 line-clamp-2">{form.description || 'No description'}</p>
+                    <div className="mb-3"></div>
                     <div className="flex items-center justify-between text-xs sm:text-sm text-gray-500 mb-3">
                       <span>{form.responses?.length || 0} responses</span>
                       <span>{new Date(form.updatedAt).toLocaleDateString()}</span>

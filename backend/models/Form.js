@@ -1,31 +1,69 @@
 const mongoose = require("mongoose");
 
 // Let's start with the most basic form structure
-const formSchema = new mongoose.Schema({
-  // Basic form information
-  title: {
-    type: String,
-    required: [true, 'Form title is required'],
-    trim: true,
-    maxlength: [200, 'Form title cannot exceed 200 characters']
+const formSchema = new mongoose.Schema(
+  {
+    // Basic form information
+    title: {
+      type: String,
+      required: [true, "Form title is required"],
+      trim: true,
+      maxlength: [200, "Form title cannot exceed 200 characters"],
+    },
+
+    // Who created this form?
+    //which relationship is this
+    
+    createdBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: [true, "Form must be created by a user"],
+    },
+
+    // Form status - controls whether form accepts responses
+    status: {
+      type: String,
+      enum: {
+        values: ['draft', 'published', 'closed'],
+        message: 'Status must be either draft, published, or closed'
+      },
+      default: 'draft',
+      required: true
+    },
+
+    // Array of form fields/questions
+    fields: [{
+      id: {
+        type: String,
+        required: true
+      },
+      type: {
+        type: String,
+        enum: ['text', 'email', 'number', 'textarea', 'select', 'radio', 'checkbox'],
+        required: true
+      },
+      label: {
+        type: String,
+        required: true,
+        trim: true
+      },
+      placeholder: {
+        type: String,
+        default: ''
+      },
+      required: {
+        type: Boolean,
+        default: false
+      },
+      options: [{
+        type: String
+      }]
+    }],
   },
-  
-  description: {
-    type: String,
-    trim: true,
-    maxlength: [1000, 'Form description cannot exceed 1000 characters']
-  },
-  
-  // Who created this form?
-  createdBy: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: [true, 'Form must be created by a user']
+  {
+    timestamps: true, // This automatically adds createdAt and updatedAt
   }
-  
-}, {
-  timestamps: true // This automatically adds createdAt and updatedAt
-});
+);
 
 const Form = mongoose.model("Form", formSchema);
 
