@@ -2,12 +2,20 @@
 
 // Field types that are suitable for conditional logic
 export const CONDITIONAL_LOGIC_FIELD_TYPES = [
+  'text',
+  'email',
+  'phone',
+  'number',
+  'textarea',
   'select',
   'radio', 
   'checkbox',
   'date',
   'time',
-  'rating'
+  'rating',
+  'file',
+  'website',
+  'address'
 ];
 
 // Check if a field type supports conditional logic
@@ -77,9 +85,138 @@ export const evaluateCondition = (condition, formData, allFields) => {
       }
       return fieldValue && String(fieldValue).trim() !== '';
 
+    case 'starts with':
+      return String(fieldValue || '').toLowerCase().startsWith(String(value || '').toLowerCase());
+
+    case 'ends with':
+      return String(fieldValue || '').toLowerCase().endsWith(String(value || '').toLowerCase());
+
+    case 'is greater than or equal to':
+      const numValue3 = parseFloat(value);
+      const numFieldValue3 = parseFloat(fieldValue);
+      return !isNaN(numFieldValue3) && !isNaN(numValue3) && numFieldValue3 >= numValue3;
+
+    case 'is less than or equal to':
+      const numValue4 = parseFloat(value);
+      const numFieldValue4 = parseFloat(fieldValue);
+      return !isNaN(numFieldValue4) && !isNaN(numValue4) && numFieldValue4 <= numValue4;
+
+    case 'is selected':
+      if (Array.isArray(fieldValue)) {
+        return fieldValue.includes(value) || fieldValue.length > 0;
+      }
+      return Boolean(fieldValue);
+
+    case 'is not selected':
+      if (Array.isArray(fieldValue)) {
+        return !fieldValue.includes(value) || fieldValue.length === 0;
+      }
+      return !Boolean(fieldValue);
+
+    case 'has any value':
+      if (Array.isArray(fieldValue)) {
+        return fieldValue.length > 0;
+      }
+      return fieldValue !== null && fieldValue !== undefined && String(fieldValue).trim() !== '';
+
+    case 'has specific value':
+      if (Array.isArray(fieldValue)) {
+        return fieldValue.includes(value);
+      }
+      return String(fieldValue || '').toLowerCase() === String(value || '').toLowerCase();
+
     default:
       return false;
   }
+};
+
+/**
+ * Evaluates grouped conditions with AND/OR logic
+ * @param {Array} conditions - Array of conditions to evaluate
+ * @param {Object} formData - Current form data
+ * @param {Array} allFields - All available fields
+ * @returns {boolean} - Whether the grouped conditions are met
+ */
+export const evaluateGroupedConditions = (conditions, formData, allFields) => {
+  if (!conditions || conditions.length === 0) return false;
+  if (conditions.length === 1) {
+    return evaluateCondition(conditions[0], formData, allFields);
+  }
+
+  let result = evaluateCondition(conditions[0], formData, allFields);
+  
+  for (let i = 1; i < conditions.length; i++) {
+    const condition = conditions[i];
+    const conditionResult = evaluateCondition(condition, formData, allFields);
+    
+    if (condition.operator === 'OR') {
+      result = result || conditionResult;
+    } else { // Default to AND
+      result = result && conditionResult;
+    }
+    
+    // Early termination optimizations
+    if (condition.operator === 'OR' && result) break;
+    if (condition.operator === 'AND' && !result) break;
+  }
+  
+  return result;
+};
+
+/**
+ * Validates a single condition
+ * @param {Object} condition - The condition to validate
+ * @param {Array} allFields - All available fields
+ * @returns {Object} - Validation result with isValid and errors
+ */
+export const validateCondition = (condition, allFields) => {
+  const errors = [];
+  
+  if (!condition.triggerFieldId) {
+    errors.push('Please select a trigger field');
+  }
+  
+  if (!condition.state) {
+    errors.push('Please select a condition');
+  }
+  
+  const triggerField = allFields.find(f => f.id === condition.triggerFieldId);
+  if (triggerField && !supportsConditionalLogic(triggerField.type)) {
+    errors.push(`Field type "${triggerField.type}" does not support conditional logic`);
+  }
+  
+  // Check if value is required for this condition state
+  const valueRequiredStates = [
+    'is equal to', 'is not equal to', 'contains', 'does not contain',
+    'starts with', 'ends with', 'is greater than', 'is less than',
+    'is greater than or equal to', 'is less than or equal to', 'has specific value'
+  ];
+  
+  if (valueRequiredStates.includes(condition.state) && !condition.value && condition.value !== 0) {
+    errors.push('Please enter a value for this condition');
+  }
+  
+  // Validate value type for numeric conditions
+  if (triggerField && triggerField.type === 'number') {
+    const numericStates = [
+      'is greater than', 'is less than', 'is greater than or equal to', 'is less than or equal to'
+    ];
+    if (numericStates.includes(condition.state) && condition.value && isNaN(parseFloat(condition.value))) {
+      errors.push('Please enter a valid number');
+    }
+  }
+  
+  // Validate value exists in options for select/radio fields
+  if (triggerField && ['select', 'radio'].includes(triggerField.type)) {
+    if (condition.value && triggerField.options && !triggerField.options.includes(condition.value)) {
+      errors.push('Selected value is not available in field options');
+    }
+  }
+  
+  return {
+    isValid: errors.length === 0,
+    errors
+  };
 };
 
 /**

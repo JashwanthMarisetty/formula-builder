@@ -166,6 +166,7 @@ const FormBuilder = () => {
     triggerAutoSave();
   }, [currentForm, currentPageIndex, updateForm, triggerAutoSave]);
 
+  // Manual save with redirect (for save button)
   const handleSaveForm = useCallback(() => {
     if (currentForm) {
       updateForm(currentForm.id, {
@@ -178,6 +179,18 @@ const FormBuilder = () => {
       }, 2000);
     }
   }, [currentForm, updateForm, navigate]);
+
+  // Auto-save without redirect (for FormCanvas auto-save)
+  const handleAutoSaveOnly = useCallback(() => {
+    if (currentForm) {
+      updateForm(currentForm.id, {
+        updatedAt: new Date().toISOString()
+      });
+      // Show subtle auto-save indication
+      setShowAutoSaved(true);
+      setTimeout(() => setShowAutoSaved(false), 3000);
+    }
+  }, [currentForm, updateForm]);
 
   const handleAddPage = useCallback(() => {
     if (currentForm && currentForm.pages.length < MAX_PAGES) {
@@ -383,7 +396,7 @@ const FormBuilder = () => {
             onSelectField={handleSelectField}
             selectedFieldId={selectedFieldId}
             onReorderFields={handleReorderFields}
-            onSaveForm={handleSaveForm}
+            onSaveForm={handleAutoSaveOnly}
             onAddField={handleAddField}
           />
         </div>
@@ -448,7 +461,7 @@ const FormBuilder = () => {
                 onSelectField={handleSelectField}
                 selectedFieldId={selectedFieldId}
                 onReorderFields={handleReorderFields}
-                onSaveForm={handleSaveForm}
+                onSaveForm={handleAutoSaveOnly}
               />
             </div>
           )}

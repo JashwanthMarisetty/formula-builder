@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { CONDITION_STATES } from '../../constants';
-import { supportsConditionalLogic } from '../../utils/conditionalLogic';
-import { ChevronDown, ChevronUp, Trash2, Eye, EyeOff, SkipForward, Plus, X } from 'lucide-react';
+import { CONDITION_STATES, getConditionStatesForFieldType } from '../../constants';
+import { supportsConditionalLogic, validateCondition } from '../../utils/conditionalLogic';
+import { ChevronDown, ChevronUp, Trash2, Eye, EyeOff, SkipForward, Plus, X, AlertTriangle } from 'lucide-react';
 
 const ConditionalRuleBlock = ({ 
   rule, 
@@ -281,7 +281,10 @@ const ConditionalRuleBlock = ({
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
                       >
                         <option value="">Select condition</option>
-                        {CONDITION_STATES.map((state) => (
+                        {(condition.triggerFieldId ? 
+                          getConditionStatesForFieldType(getTriggerField(condition.triggerFieldId)?.type) : 
+                          CONDITION_STATES
+                        ).map((state) => (
                           <option key={state} value={state}>
                             {state}
                           </option>

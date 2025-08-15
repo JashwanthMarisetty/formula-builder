@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { X, Settings, CheckCircle, AlertCircle } from 'lucide-react';
 
 const PropertyPanel = ({ field, onUpdateField, onClose }) => {
