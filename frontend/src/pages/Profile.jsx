@@ -5,7 +5,6 @@ import Navbar from '../components/Navbar';
 import { 
   User, 
   Mail, 
-  Calendar, 
   LogOut, 
   FileText, 
   Key, 
@@ -38,14 +37,8 @@ const Profile = () => {
     name: user?.name || 'John Doe',
     email: user?.email || 'john.doe@example.com',
     avatar: user?.avatar || 'https://images.pexels.com/photos/91227/pexels-photo-91227.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
-    joinDate: '2024-01-15T10:30:00Z',
-    lastLogin: '2024-01-20T14:22:00Z',
     formsCreated: 12,
-    totalResponses: 245,
-    accountStatus: 'Active',
-    subscription: 'Free Plan',
-    storageUsed: '2.3 MB',
-    storageLimit: '100 MB'
+    totalResponses: 245
   };
 
   const handleLogout = () => {
@@ -113,23 +106,6 @@ const Profile = () => {
     }
   };
 
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
-  };
-
-  const formatDateTime = (dateString) => {
-    return new Date(dateString).toLocaleString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -162,18 +138,6 @@ const Profile = () => {
                   <div>
                     <h1 className="text-3xl font-bold text-gray-900">{userData.name}</h1>
                     <p className="text-gray-600 mt-1">{userData.email}</p>
-                    <div className="flex items-center space-x-4 mt-2">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        userData.accountStatus === 'Active' 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-red-100 text-red-800'
-                      }`}>
-                        {userData.accountStatus}
-                      </span>
-                      <span className="px-2 py-1 bg-purple-100 text-purple-800 rounded-full text-xs font-medium">
-                        {userData.subscription}
-                      </span>
-                    </div>
                   </div>
                 </div>
               </div>
@@ -199,20 +163,6 @@ const Profile = () => {
                           <p className="text-gray-900">{userData.email}</p>
                         </div>
                       </div>
-                      <div className="flex items-center space-x-3">
-                        <Calendar className="w-5 h-5 text-gray-400" />
-                        <div>
-                          <p className="text-sm font-medium text-gray-700">Member Since</p>
-                          <p className="text-gray-900">{formatDate(userData.joinDate)}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center space-x-3">
-                        <Calendar className="w-5 h-5 text-gray-400" />
-                        <div>
-                          <p className="text-sm font-medium text-gray-700">Last Login</p>
-                          <p className="text-gray-900">{formatDateTime(userData.lastLogin)}</p>
-                        </div>
-                      </div>
                     </div>
                   </div>
 
@@ -236,22 +186,6 @@ const Profile = () => {
                             <p className="text-2xl font-bold text-green-900">{userData.totalResponses}</p>
                           </div>
                           <User className="w-8 h-8 text-green-600" />
-                        </div>
-                      </div>
-                      <div className="bg-purple-50 p-4 rounded-lg">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="text-sm font-medium text-purple-700">Storage Used</p>
-                            <p className="text-lg font-bold text-purple-900">
-                              {userData.storageUsed} / {userData.storageLimit}
-                            </p>
-                          </div>
-                          <div className="w-full bg-purple-200 rounded-full h-2 ml-4">
-                            <div 
-                              className="bg-purple-600 h-2 rounded-full" 
-                              style={{ width: '2.3%' }}
-                            ></div>
-                          </div>
                         </div>
                       </div>
                     </div>

@@ -18,10 +18,6 @@ const auth = async (req, res, next) => {
       return res.status(401).json({ message: "Token is not valid" });
     }
 
-    if (!user.isActive) {
-      return res.status(401).json({ message: "Account is deactivated" });
-    }
-
     req.user = user;
     next();
   } catch (error) {

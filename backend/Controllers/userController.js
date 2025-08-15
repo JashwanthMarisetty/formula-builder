@@ -67,12 +67,6 @@ const login = async (req, res) => {
       return res.status(400).json({ message: "Invalid credentials" });
     }
 
-    if (!user.isActive) {
-      return res.status(403).json({ message: "Account is deactivated" });
-    }
-
-    await user.save();
-
     const token = generateToken(user._id);
     const refreshToken = generateRefreshToken(user._id); // Refresh token valid for 30 days
     
@@ -108,7 +102,7 @@ const refreshToken = async (req, res) => {
     const decoded = verifyRefreshToken(refreshToken);
     const user = await User.findById(decoded.userId);
 
-    if (!user || !user.isActive) {
+    if (!user) {
       return res.status(401).json({ message: "Invalid refresh token" });
     }
 
