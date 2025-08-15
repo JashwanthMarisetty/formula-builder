@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 
 import { MAX_PAGES } from '../constants';
@@ -58,7 +58,7 @@ export const FormProvider = ({ children }) => {
     localStorage.setItem('formula_page_conditions', JSON.stringify(pageConditions));
   }, [pageConditions]);
 
-  const createForm = (formData) => {
+  const createForm = useCallback((formData) => {
     const newForm = {
       id: uuidv4(),
       name: formData.name || 'Untitled Form',
@@ -80,9 +80,9 @@ export const FormProvider = ({ children }) => {
     setCurrentForm(newForm);
     
     return newForm;
-  };
+  }, []);
 
-  const updateForm = (formId, updates) => {
+  const updateForm = useCallback((formId, updates) => {
     setForms(prev => prev.map(form => 
       form.id === formId 
         ? { ...form, ...updates, updatedAt: new Date().toISOString() }
@@ -91,9 +91,9 @@ export const FormProvider = ({ children }) => {
     if (currentForm && currentForm.id === formId) {
       setCurrentForm(prev => ({ ...prev, ...updates }));
     }
-  };
+  }, [currentForm]);
 
-  const deleteForm = (formId) => {
+  const deleteForm = useCallback((formId) => {
     setForms(prev => prev.filter(form => form.id !== formId));
     // Also remove related conditions
     setFieldConditions(prev => prev.filter(condition => condition.formId !== formId));
@@ -101,21 +101,21 @@ export const FormProvider = ({ children }) => {
     if (currentForm && currentForm.id === formId) {
       setCurrentForm(null);
     }
-  };
+  }, [currentForm]);
 
-  const moveFormToTrash = (formId) => {
+  const moveFormToTrash = useCallback((formId) => {
     updateForm(formId, { location: 'trash' });
-  };
+  }, [updateForm]);
 
-  const moveFormToArchive = (formId) => {
+  const moveFormToArchive = useCallback((formId) => {
     updateForm(formId, { location: 'archive' });
-  };
+  }, [updateForm]);
 
-  const restoreForm = (formId) => {
+  const restoreForm = useCallback((formId) => {
     updateForm(formId, { location: 'inbox' });
-  };
+  }, [updateForm]);
 
-  const addField = (formId, pageId, field) => {
+  const addField = useCallback((formId, pageId, field) => {
     const newField = {
       id: uuidv4(),
       ...field,
@@ -146,9 +146,9 @@ export const FormProvider = ({ children }) => {
         )
       }));
     }
-  };
+  }, [currentForm]);
 
-  const updateField = (formId, pageId, fieldId, updates) => {
+  const updateField = useCallback((formId, pageId, fieldId, updates) => {
     setForms(prev => prev.map(form => 
       form.id === formId 
         ? {
@@ -187,9 +187,9 @@ export const FormProvider = ({ children }) => {
         )
       }));
     }
-  };
+  }, [currentForm]);
 
-  const removeField = (formId, pageId, fieldId) => {
+  const removeField = useCallback((formId, pageId, fieldId) => {
     // Remove related conditions when field is deleted
     setFieldConditions(prev => prev.filter(condition => 
       condition.triggerFieldId !== fieldId && condition.targetFieldId !== fieldId
@@ -222,9 +222,9 @@ export const FormProvider = ({ children }) => {
         )
       }));
     }
-  };
+  }, [currentForm]);
 
-  const addFormPage = (formId) => {
+  const addFormPage = useCallback((formId) => {
     const form = forms.find(f => f.id === formId);
     if (!form || form.pages.length >= MAX_PAGES) return;
     
@@ -237,9 +237,9 @@ export const FormProvider = ({ children }) => {
     updateForm(formId, {
       pages: [...form.pages, newPage]
     });
-  };
+  }, [forms, updateForm]);
 
-  const deleteFormPage = (formId, pageIndex) => {
+  const deleteFormPage = useCallback((formId, pageIndex) => {
     const form = forms.find(f => f.id === formId);
     if (!form || form.pages.length <= 1) return;
     
@@ -261,45 +261,46 @@ export const FormProvider = ({ children }) => {
     updateForm(formId, {
       pages: newPages
     });
-  };
+  }, [forms, updateForm]);
 
-  const addFieldCondition = (condition) => {
+  const addFieldCondition = useCallback((condition) => {
     const newCondition = {
       id: uuidv4(),
       ...condition
     };
     setFieldConditions(prev => [...prev, newCondition]);
-  };
+  }, []);
 
-  const removeFieldCondition = (id) => {
+  const removeFieldCondition = useCallback((id) => {
     setFieldConditions(prev => prev.filter(condition => condition.id !== id));
-  };
+  }, []);
 
-  const addPageCondition = (condition) => {
+  const addPageCondition = useCallback((condition) => {
     const newCondition = {
       id: uuidv4(),
       ...condition
     };
     setPageConditions(prev => [...prev, newCondition]);
-  };
+  }, []);
 
-  const removePageCondition = (id) => {
+  const removePageCondition = useCallback((id) => {
     setPageConditions(prev => prev.filter(condition => condition.id !== id));
-  };
+  }, []);
 
-  const updateFieldCondition = (id, updates) => {
+  const updateFieldCondition = useCallback((id, updates) => {
     setFieldConditions(prev => prev.map(condition =>
       condition.id === id ? { ...condition, ...updates } : condition
     ));
-  };
+  }, []);
 
-  const updatePageCondition = (id, updates) => {
+  const updatePageCondition = useCallback((id, updates) => {
     setPageConditions(prev => prev.map(condition =>
       condition.id === id ? { ...condition, ...updates } : condition
     ));
-  };
+  }, []);
 
-  const value = {
+  // Memoize context value to prevent unnecessary re-renders
+  const value = useMemo(() => ({
     forms,
     currentForm,
     setCurrentForm,
@@ -324,7 +325,31 @@ export const FormProvider = ({ children }) => {
     removePageCondition,
     updateFieldCondition,
     updatePageCondition
-  };
+  }), [
+    forms,
+    currentForm,
+    fieldConditions,
+    pageConditions,
+    chatbotSettings,
+    setChatbotSettings,
+    createForm,
+    updateForm,
+    deleteForm,
+    moveFormToTrash,
+    moveFormToArchive,
+    restoreForm,
+    addField,
+    updateField,
+    removeField,
+    addFormPage,
+    deleteFormPage,
+    addFieldCondition,
+    removeFieldCondition,
+    addPageCondition,
+    removePageCondition,
+    updateFieldCondition,
+    updatePageCondition
+  ]);
 
   return (
     <FormContext.Provider value={value}>

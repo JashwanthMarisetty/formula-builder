@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useForm } from '../contexts/FormContext';
 import { MAX_PAGES } from '../constants';
@@ -46,23 +46,63 @@ const FormBuilder = () => {
   const [autoSaveTimeout, setAutoSaveTimeout] = useState(null);
   const [mobileActiveTab, setMobileActiveTab] = useState('form'); // 'fields', 'form', 'props'
   const [showSaveSuccess, setShowSaveSuccess] = useState(false);
+  const [isCreatingForm, setIsCreatingForm] = useState(false);
+  const navigationRef = useRef(false);
 
+  // Cleanup auto-save timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (autoSaveTimeout) {
+        clearTimeout(autoSaveTimeout);
+      }
+    };
+  }, [autoSaveTimeout]);
+
+  // Form initialization effect
   useEffect(() => {
     if (formId) {
       const form = forms.find(f => f.id === formId);
       if (form) {
         setCurrentForm(form);
+        navigationRef.current = false;
       } else {
         navigate('/dashboard');
       }
-    } else {
+    } else if (!isCreatingForm && !navigationRef.current) {
+      // Prevent duplicate form creation
+      setIsCreatingForm(true);
+      navigationRef.current = true;
+      
       // Create new form
       const newForm = createForm({ name: 'Untitled Form' });
       navigate(`/form-builder/${newForm.id}`, { replace: true });
+      
+      // Reset creation flag after navigation
+      setTimeout(() => {
+        setIsCreatingForm(false);
+      }, 100);
     }
-  }, [formId, forms, setCurrentForm, createForm, navigate]);
+  }, [formId, forms, setCurrentForm, createForm, navigate, isCreatingForm]);
 
-  const handleAddField = (fieldData) => {
+  const triggerAutoSave = useCallback(() => {
+    if (autoSaveTimeout) {
+      clearTimeout(autoSaveTimeout);
+    }
+    
+    const timeout = setTimeout(() => {
+      if (currentForm) {
+        updateForm(currentForm.id, {
+          updatedAt: new Date().toISOString()
+        });
+        setShowAutoSaved(true);
+        setTimeout(() => setShowAutoSaved(false), 3000);
+      }
+    }, 1500);
+    
+    setAutoSaveTimeout(timeout);
+  }, [autoSaveTimeout, currentForm, updateForm]);
+
+  const handleAddField = useCallback((fieldData) => {
     if (currentForm) {
       const currentPage = currentForm.pages[currentPageIndex];
       addField(currentForm.id, currentPage.id, fieldData);
@@ -72,17 +112,17 @@ const FormBuilder = () => {
         setMobileActiveTab('form');
       }
     }
-  };
+  }, [currentForm, currentPageIndex, addField, triggerAutoSave]);
 
-  const handleUpdateField = (fieldId, updates) => {
+  const handleUpdateField = useCallback((fieldId, updates) => {
     if (currentForm) {
       const currentPage = currentForm.pages[currentPageIndex];
       updateField(currentForm.id, currentPage.id, fieldId, updates);
       triggerAutoSave();
     }
-  };
+  }, [currentForm, currentPageIndex, updateField, triggerAutoSave]);
 
-  const handleRemoveField = (fieldId) => {
+  const handleRemoveField = useCallback((fieldId) => {
     if (currentForm) {
       const currentPage = currentForm.pages[currentPageIndex];
       removeField(currentForm.id, currentPage.id, fieldId);
@@ -92,18 +132,18 @@ const FormBuilder = () => {
       }
       triggerAutoSave();
     }
-  };
+  }, [currentForm, currentPageIndex, removeField, selectedFieldId, triggerAutoSave]);
 
-  const handleSelectField = (fieldId) => {
+  const handleSelectField = useCallback((fieldId) => {
     setSelectedFieldId(fieldId);
     setIsPropertyPanelOpen(true);
     // Switch to props view on mobile when field is selected
     if (window.innerWidth < 1024) {
       setMobileActiveTab('props');
     }
-  };
+  }, []);
 
-  const handleReorderFields = (sourceIndex, destIndex, newField = null) => {
+  const handleReorderFields = useCallback((sourceIndex, destIndex, newField = null) => {
     if (!currentForm) return;
     
     const currentPage = currentForm.pages[currentPageIndex];
@@ -124,24 +164,9 @@ const FormBuilder = () => {
       )
     });
     triggerAutoSave();
-  };
+  }, [currentForm, currentPageIndex, updateForm, triggerAutoSave]);
 
-  const triggerAutoSave = () => {
-    if (autoSaveTimeout) {
-      clearTimeout(autoSaveTimeout);
-    }
-    
-    const timeout = setTimeout(() => {
-      handleAutoSave();
-      setShowAutoSaved(true);
-      setTimeout(() => setShowAutoSaved(false), 3000);
-    }, 1500);
-    
-    setAutoSaveTimeout(timeout);
-  };
-
-
-  const handleSaveForm = () => {
+  const handleSaveForm = useCallback(() => {
     if (currentForm) {
       updateForm(currentForm.id, {
         updatedAt: new Date().toISOString()
@@ -152,26 +177,18 @@ const FormBuilder = () => {
         navigate('/my-forms');
       }, 2000);
     }
-  };
+  }, [currentForm, updateForm, navigate]);
 
-  const handleAutoSave = () => {
-    if (currentForm) {
-      updateForm(currentForm.id, {
-        updatedAt: new Date().toISOString()
-      });
-    }
-  };
-
-  const handleAddPage = () => {
+  const handleAddPage = useCallback(() => {
     if (currentForm && currentForm.pages.length < MAX_PAGES) {
       addFormPage(currentForm.id);
       // Navigate to the new page
       setCurrentPageIndex(currentForm.pages.length);
       triggerAutoSave();
     }
-  };
+  }, [currentForm, addFormPage, triggerAutoSave]);
 
-  const handleDeletePage = () => {
+  const handleDeletePage = useCallback(() => {
     if (currentForm && currentForm.pages.length > 1) {
       deleteFormPage(currentForm.id, currentPageIndex);
       if (currentPageIndex > 0) {
@@ -181,15 +198,15 @@ const FormBuilder = () => {
       }
       triggerAutoSave();
     }
-  };
+  }, [currentForm, currentPageIndex, deleteFormPage, triggerAutoSave]);
 
-  const handlePreviousPage = () => {
+  const handlePreviousPage = useCallback(() => {
     setCurrentPageIndex(Math.max(0, currentPageIndex - 1));
-  };
+  }, [currentPageIndex]);
 
-  const handleNextPage = () => {
+  const handleNextPage = useCallback(() => {
     setCurrentPageIndex(Math.min(currentForm.pages.length - 1, currentPageIndex + 1));
-  };
+  }, [currentForm, currentPageIndex]);
 
   const selectedField = currentForm?.pages[currentPageIndex]?.fields.find(
     field => field.id === selectedFieldId
