@@ -59,6 +59,27 @@ const formSchema = new mongoose.Schema(
         type: String
       }]
     }],
+
+    // Array of form responses/submissions
+    responses: [{
+      id: {
+        type: String,
+        required: true
+      },
+      submittedAt: {
+        type: Date,
+        default: Date.now,
+        required: true
+      },
+      data: {
+        type: mongoose.Schema.Types.Mixed,
+        required: true
+      },
+      submitterIP: {
+        type: String,
+        default: ''
+      }
+    }],
   },
   {
     timestamps: true, // This automatically adds createdAt and updatedAt
