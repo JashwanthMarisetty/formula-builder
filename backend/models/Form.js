@@ -80,6 +80,13 @@ const formSchema = new mongoose.Schema(
         default: ''
       }
     }],
+
+    // Analytics fields
+    views: {
+      type: Number,
+      default: 0,
+      min: 0
+    },
   },
   {
     timestamps: true, // This automatically adds createdAt and updatedAt
