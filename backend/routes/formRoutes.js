@@ -3,7 +3,9 @@ const router = express.Router();
 const { 
   createForm, 
   getAllForms,
-  getFormById 
+  getFormById,
+  updateForm,
+  deleteForm
 } = require("../Controllers/formController");
 const { auth } = require("../middleware/auth");
 const {
@@ -20,5 +22,11 @@ router.get("/:id", auth, getFormByIdValidation, getFormById);
 
 // POST /api/forms - Create a new form
 router.post("/", auth, createFormValidation, createForm);
+
+// PUT /api/forms/:id - Update a form
+router.put("/:id", auth, updateForm);
+
+// DELETE /api/forms/:id - Delete a form
+router.delete("/:id", auth, deleteForm);
 
 module.exports = router;
