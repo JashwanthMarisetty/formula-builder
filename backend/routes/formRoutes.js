@@ -31,4 +31,11 @@ router.put("/:id", auth, updateForm);
 // DELETE /api/forms/:id - Delete a form
 router.delete("/:id", auth, deleteForm);
 
+// PUBLIC ROUTES (no auth required)
+// GET /api/forms/public/:id - Get public form for sharing
+router.get("/public/:id", getPublicForm);
+
+// POST /api/forms/:id/submit - Submit response to form
+router.post("/:id/submit", submitFormResponse);
+
 module.exports = router;
