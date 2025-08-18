@@ -281,8 +281,108 @@ const getFormById = async (req, res) => {
   }
 };
 
+const updateForm = async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ 
+        success: false,
+        message: "Validation errors",
+        errors: errors.array() 
+      });
+    }
+
+    const { id } = req.params;
+    const updateData = req.body;
+    
+    // Clean up data that shouldn't be updated
+    delete updateData._id;
+    delete updateData.createdBy;
+    delete updateData.createdAt;
+    
+    // Check if form exists and user owns it
+    const form = await Form.findById(id);
+    if (!form) {
+      return res.status(404).json({
+        success: false,
+        message: "Form not found"
+      });
+    }
+    
+    if (form.createdBy.toString() !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied"
+      });
+    }
+    
+    // Validate fields if they're being updated
+    if (updateData.fields) {
+      for (let field of updateData.fields) {
+        if (!field.id || !field.type || !field.label) {
+          return res.status(400).json({
+            success: false,
+            message: "Fields must have id, type, and label"
+          });
+        }
+        
+        // Check if select/radio/checkbox has options
+        if (['select', 'radio', 'checkbox'].includes(field.type)) {
+          if (!field.options || field.options.length === 0) {
+            return res.status(400).json({
+              success: false,
+              message: `${field.type} fields need options`
+            });
+          }
+        }
+      }
+    }
+    
+    // Can't publish empty form
+    if (updateData.status === 'published') {
+      const fields = updateData.fields || form.fields;
+      if (!fields || fields.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: "Can't publish form without fields"
+        });
+      }
+    }
+    
+    // Update the form
+    const updatedForm = await Form.findByIdAndUpdate(
+      id,
+      updateData,
+      { new: true, runValidators: true }
+    ).populate('createdBy', 'name email');
+    
+    res.status(200).json({
+      success: true,
+      message: "Form updated successfully",
+      data: updatedForm
+    });
+    
+  } catch (error) {
+    console.error("Error updating form:", error);
+    
+    if (error.name === 'CastError') {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid form ID"
+      });
+    }
+    
+    res.status(500).json({ 
+      success: false,
+      message: "Server error",
+      error: error.message 
+    });
+  }
+};
+
 module.exports = {
   createForm,
   getAllForms,
-  getFormById
+  getFormById,
+  updateForm
 };
