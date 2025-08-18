@@ -425,10 +425,74 @@ const deleteForm = async (req, res) => {
   }
 };
 
+const submitFormResponse = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const responseData = req.body;
+    
+    // Find form
+    const form = await Form.findById(id);
+    if (!form) {
+      return res.status(404).json({
+        success: false,
+        message: "Form not found"
+      });
+    }
+    
+    // Check if form is published
+    if (form.status !== 'published') {
+      return res.status(400).json({
+        success: false,
+        message: "Form is not available for submissions"
+      });
+    }
+    
+    // Basic validation - check required fields
+    for (let field of form.fields) {
+      if (field.required && (!responseData[field.id] || responseData[field.id].trim() === '')) {
+        return res.status(400).json({
+          success: false,
+          message: `${field.label} is required`
+        });
+      }
+    }
+    
+    // Create response object
+    const newResponse = {
+      id: Date.now().toString(), // Simple ID for now
+      submittedAt: new Date(),
+      data: responseData,
+      submitterIP: req.ip || req.connection.remoteAddress || 'unknown'
+    };
+    
+    // Add response to form
+    form.responses.push(newResponse);
+    await form.save();
+    
+    res.status(201).json({
+      success: true,
+      message: "Response submitted successfully",
+      data: {
+        responseId: newResponse.id,
+        submittedAt: newResponse.submittedAt
+      }
+    });
+    
+  } catch (error) {
+    console.error("Error submitting response:", error);
+    res.status(500).json({ 
+      success: false,
+      message: "Server error",
+      error: error.message 
+    });
+  }
+};
+
 module.exports = {
   createForm,
   getAllForms,
   getFormById,
   updateForm,
-  deleteForm
+  deleteForm,
+  submitFormResponse
 };
