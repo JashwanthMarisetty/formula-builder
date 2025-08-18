@@ -13,7 +13,7 @@ const formSchema = new mongoose.Schema(
 
     // Who created this form?
     //which relationship is this
-    
+
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
@@ -24,68 +24,88 @@ const formSchema = new mongoose.Schema(
     status: {
       type: String,
       enum: {
-        values: ['draft', 'published', 'closed'],
-        message: 'Status must be either draft, published, or closed'
+        values: ["draft", "published", "closed"],
+        message: "Status must be either draft, published, or closed",
       },
-      default: 'draft',
-      required: true
+      default: "draft",
+      required: true,
     },
 
     // Array of form fields/questions
-    fields: [{
-      id: {
-        type: String,
-        required: true
+    fields: [
+      {
+        id: {
+          type: String,
+          required: true,
+        },
+        type: {
+          type: String,
+          enum: [
+            "text",
+            "email",
+            "number",
+            "textarea",
+            "select",
+            "radio",
+            "checkbox",
+            "date",
+            "time",
+            "file",
+            "phone",
+            "rating",
+            "address",
+          ],
+          required: true,
+        },
+        label: {
+          type: String,
+          required: true,
+          trim: true,
+        },
+        placeholder: {
+          type: String,
+          default: "",
+        },
+        required: {
+          type: Boolean,
+          default: false,
+        },
+        options: [
+          {
+            type: String,
+          },
+        ],
       },
-      type: {
-        type: String,
-        enum: ['text', 'email', 'number', 'textarea', 'select', 'radio', 'checkbox'],
-        required: true
-      },
-      label: {
-        type: String,
-        required: true,
-        trim: true
-      },
-      placeholder: {
-        type: String,
-        default: ''
-      },
-      required: {
-        type: Boolean,
-        default: false
-      },
-      options: [{
-        type: String
-      }]
-    }],
+    ],
 
     // Array of form responses/submissions
-    responses: [{
-      id: {
-        type: String,
-        required: true
+    responses: [
+      {
+        id: {
+          type: String,
+          required: true,
+        },
+        submittedAt: {
+          type: Date,
+          default: Date.now,
+          required: true,
+        },
+        data: {
+          type: mongoose.Schema.Types.Mixed,
+          required: true,
+        },
+        submitterIP: {
+          type: String,
+          default: "",
+        },
       },
-      submittedAt: {
-        type: Date,
-        default: Date.now,
-        required: true
-      },
-      data: {
-        type: mongoose.Schema.Types.Mixed,
-        required: true
-      },
-      submitterIP: {
-        type: String,
-        default: ''
-      }
-    }],
+    ],
 
     // Analytics fields
     views: {
       type: Number,
       default: 0,
-      min: 0
+      min: 0,
     },
   },
   {
