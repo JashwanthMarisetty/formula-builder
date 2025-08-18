@@ -5,7 +5,9 @@ const {
   getAllForms,
   getFormById,
   updateForm,
-  deleteForm
+  deleteForm,
+  submitFormResponse,
+  getPublicForm
 } = require("../Controllers/formController");
 const { auth } = require("../middleware/auth");
 const {

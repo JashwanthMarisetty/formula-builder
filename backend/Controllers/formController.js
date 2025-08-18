@@ -488,11 +488,53 @@ const submitFormResponse = async (req, res) => {
   }
 };
 
+// Get public form (for sharing - no auth needed)
+const getPublicForm = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const form = await Form.findById(id)
+      .select('title fields status views')
+      .lean();
+    
+    if (!form) {
+      return res.status(404).json({
+        success: false,
+        message: "Form not found"
+      });
+    }
+    
+    if (form.status !== 'published') {
+      return res.status(400).json({
+        success: false,
+        message: "Form is not available"
+      });
+    }
+    
+    // Increment view count
+    await Form.findByIdAndUpdate(id, { $inc: { views: 1 } });
+    
+    res.status(200).json({
+      success: true,
+      message: "Form retrieved successfully",
+      data: form
+    });
+    
+  } catch (error) {
+    console.error("Error getting public form:", error);
+    res.status(500).json({ 
+      success: false,
+      message: "Server error"
+    });
+  }
+};
+
 module.exports = {
   createForm,
   getAllForms,
   getFormById,
   updateForm,
   deleteForm,
-  submitFormResponse
+  submitFormResponse,
+  getPublicForm
 };
