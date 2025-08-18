@@ -380,9 +380,55 @@ const updateForm = async (req, res) => {
   }
 };
 
+const deleteForm = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const form = await Form.findById(id);
+    if (!form) {
+      return res.status(404).json({
+        success: false,
+        message: "Form not found"
+      });
+    }
+    
+    // Check ownership
+    if (form.createdBy.toString() !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied"
+      });
+    }
+    
+    await Form.findByIdAndDelete(id);
+    
+    res.status(200).json({
+      success: true,
+      message: "Form deleted successfully"
+    });
+    
+  } catch (error) {
+    console.error("Error deleting form:", error);
+    
+    if (error.name === 'CastError') {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid form ID"
+      });
+    }
+    
+    res.status(500).json({ 
+      success: false,
+      message: "Server error",
+      error: error.message 
+    });
+  }
+};
+
 module.exports = {
   createForm,
   getAllForms,
   getFormById,
-  updateForm
+  updateForm,
+  deleteForm
 };
