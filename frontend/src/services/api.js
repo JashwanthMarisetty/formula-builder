@@ -106,4 +106,52 @@ export const authAPI = {
   },
 };
 
+// Form API calls
+export const formAPI = {
+  // CREATE - Create a new form
+  createForm: async (formData) => {
+    const response = await api.post('/forms', formData);
+    return response.data;
+  },
+
+  // READ - Get all forms for authenticated user
+  getAllForms: async (params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    const response = await api.get(`/forms${queryString ? `?${queryString}` : ''}`);
+    return response.data;
+  },
+
+  // READ - Get a single form by ID
+  getFormById: async (formId) => {
+    const response = await api.get(`/forms/${formId}`);
+    return response.data;
+  },
+
+  // UPDATE - Update an existing form
+  updateForm: async (formId, updateData) => {
+    const response = await api.put(`/forms/${formId}`, updateData);
+    return response.data;
+  },
+
+  // DELETE - Delete a form
+  deleteForm: async (formId) => {
+    const response = await api.delete(`/forms/${formId}`);
+    return response.data;
+  },
+
+  // PUBLIC - Get public form (for sharing, no auth needed)
+  getPublicForm: async (formId) => {
+    // Remove auth header for public requests
+    const response = await axios.get(`${api.defaults.baseURL}/forms/public/${formId}`);
+    return response.data;
+  },
+
+  // SUBMIT - Submit a response to a form
+  submitFormResponse: async (formId, responseData) => {
+    // Remove auth header for public submissions
+    const response = await axios.post(`${api.defaults.baseURL}/forms/${formId}/submit`, responseData);
+    return response.data;
+  },
+};
+
 export default api;
