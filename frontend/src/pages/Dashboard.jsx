@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from '../contexts/FormContextAPI';
 import { useAuth } from '../contexts/AuthContext';
@@ -53,7 +53,7 @@ const CustomizeModal = ({ visibleWidgets, setVisibleWidgets, onClose }) => (
 );
 
 const Dashboard = () => {
-  const { forms, createForm } = useForm();
+  const { forms, createForm, isLoading, error } = useForm();
   const { user } = useAuth();
   const navigate = useNavigate();
   const [showCustomizeModal, setShowCustomizeModal] = useState(false);
@@ -66,39 +66,154 @@ const Dashboard = () => {
     performanceChart: true
   });
 
-  const handleCreateForm = () => {
-    const newForm = createForm({ name: 'Untitled Form' });
-    navigate(`/form-builder/${newForm.id}`);
+  const handleCreateForm = async () => {
+    const newForm = await createForm({ name: 'Untitled Form' });
+    if (newForm) {
+      navigate(`/form-builder/${newForm.id}`);
+    }
   };
 
-  const inboxForms = forms.filter(form => form.location === 'inbox');
-  const totalResponses = forms.reduce((sum, form) => sum + (form.responses?.length || 0), 0);
-  const totalViews = forms.reduce((sum, form) => sum + (form.views || Math.floor(Math.random() * 100) + 20), 0);
-  const conversionRate = totalViews > 0 ? ((totalResponses / totalViews) * 100).toFixed(1) : 0;
+  // Calculate real statistics from form data
+  const stats = useMemo(() => {
+    const inboxForms = forms.filter(form => form.location === 'inbox');
+    const totalResponses = forms.reduce((sum, form) => sum + (form.responses?.length || 0), 0);
+    const totalViews = forms.reduce((sum, form) => sum + (form.views || 0), 0);
+    const conversionRate = totalViews > 0 ? ((totalResponses / totalViews) * 100).toFixed(1) : 0;
+    
+    // Calculate weekly growth (mock calculation - in production you'd store historical data)
+    const thisWeek = new Date();
+    thisWeek.setDate(thisWeek.getDate() - 7);
+    
+    const recentForms = forms.filter(form => new Date(form.createdAt) >= thisWeek);
+    const recentResponses = forms.reduce((sum, form) => {
+      if (!form.responses) return sum;
+      return sum + form.responses.filter(response => 
+        new Date(response.submittedAt) >= thisWeek
+      ).length;
+    }, 0);
+    
+    return {
+      totalForms: inboxForms.length,
+      totalResponses,
+      totalViews,
+      conversionRate,
+      weeklyForms: recentForms.length,
+      weeklyResponses: recentResponses,
+      weeklyViews: Math.floor(totalViews * 0.12), // Estimated weekly views
+      inboxForms
+    };
+  }, [forms]);
 
-  const recentActivity = [
-    { id: 1, type: 'response', message: 'New response received on "Contact Form"', time: '2 hours ago', icon: MessageSquare, color: 'text-green-600' },
-    { id: 2, type: 'create', message: 'Created new form "Survey Form"', time: '1 day ago', icon: Plus, color: 'text-blue-600' },
-    { id: 3, type: 'view', message: 'Form "Registration Form" was viewed 15 times', time: '2 days ago', icon: Eye, color: 'text-purple-600' },
-    { id: 4, type: 'response', message: 'New response on "Feedback Form"', time: '3 days ago', icon: MessageSquare, color: 'text-green-600' },
-    { id: 5, type: 'edit', message: 'Updated "Contact Form" fields', time: '4 days ago', icon: FileText, color: 'text-orange-600' }
-  ];
+  // Generate recent activity from real form data
+  const recentActivity = useMemo(() => {
+    const activities = [];
+    
+    // Add form creation activities
+    forms.slice(0, 3).forEach(form => {
+      const daysAgo = Math.floor((new Date() - new Date(form.createdAt)) / (1000 * 60 * 60 * 24));
+      const timeText = daysAgo === 0 ? 'Today' : daysAgo === 1 ? '1 day ago' : `${daysAgo} days ago`;
+      
+      activities.push({
+        id: `create-${form.id}`,
+        type: 'create',
+        message: `Created form "${form.name}"`,
+        time: timeText,
+        icon: Plus,
+        color: 'text-blue-600'
+      });
+    });
+    
+    // Add recent responses
+    forms.forEach(form => {
+      if (form.responses && form.responses.length > 0) {
+        form.responses.slice(-2).forEach(response => {
+          const daysAgo = Math.floor((new Date() - new Date(response.submittedAt)) / (1000 * 60 * 60 * 24));
+          const timeText = daysAgo === 0 ? 'Today' : daysAgo === 1 ? '1 day ago' : `${daysAgo} days ago`;
+          
+          activities.push({
+            id: `response-${response.id}`,
+            type: 'response',
+            message: `New response received on "${form.name}"`,
+            time: timeText,
+            icon: MessageSquare,
+            color: 'text-green-600'
+          });
+        });
+      }
+    });
+    
+    // Add form view activities for forms with views
+    forms.filter(form => form.views > 0).slice(0, 2).forEach(form => {
+      const daysAgo = Math.floor((new Date() - new Date(form.updatedAt)) / (1000 * 60 * 60 * 24));
+      const timeText = daysAgo === 0 ? 'Today' : daysAgo === 1 ? '1 day ago' : `${daysAgo} days ago`;
+      
+      activities.push({
+        id: `view-${form.id}`,
+        type: 'view',
+        message: `Form "${form.name}" was viewed ${form.views} times`,
+        time: timeText,
+        icon: Eye,
+        color: 'text-purple-600'
+      });
+    });
+    
+    // Sort by most recent and limit to 5
+    return activities
+      .sort((a, b) => {
+        // Simple sorting by type priority for now
+        const priority = { response: 3, create: 2, view: 1 };
+        return priority[b.type] - priority[a.type];
+      })
+      .slice(0, 5);
+  }, [forms]);
 
-  const analyticsData = {
-    weeklyResponses: [12, 19, 8, 15, 22, 18, 25],
-    monthlyTrend: [45, 52, 48, 61, 55, 67, 73, 69, 78, 82, 89, 95],
-    topForms: [
-      { name: 'Contact Form', responses: 45, views: 120, conversionRate: 37.5 },
-      { name: 'Survey Form', responses: 32, views: 89, conversionRate: 36.0 },
-      { name: 'Registration Form', responses: 28, views: 76, conversionRate: 36.8 },
-      { name: 'Feedback Form', responses: 21, views: 65, conversionRate: 32.3 }
-    ],
-    deviceBreakdown: [
-      { device: 'Desktop', percentage: 45, count: Math.floor(totalResponses * 0.45) },
-      { device: 'Mobile', percentage: 35, count: Math.floor(totalResponses * 0.35) },
-      { device: 'Tablet', percentage: 20, count: Math.floor(totalResponses * 0.20) }
-    ]
-  };
+  // Generate analytics from real form data
+  const analyticsData = useMemo(() => {
+    // Calculate weekly responses (mock distribution for now)
+    const totalResponses = stats.totalResponses;
+    const weeklyResponses = Array.from({ length: 7 }, (_, i) => {
+      return Math.floor(totalResponses * (0.1 + Math.random() * 0.05));
+    });
+    
+    // Calculate monthly trend (mock data based on total responses)
+    const monthlyTrend = Array.from({ length: 12 }, (_, i) => {
+      const base = Math.floor(totalResponses / 4); // Quarterly average
+      return Math.max(1, base + Math.floor(Math.random() * base * 0.5));
+    });
+    
+    // Get top performing forms from real data
+    const topForms = forms
+      .filter(form => form.responses && form.responses.length > 0)
+      .map(form => ({
+        name: form.name,
+        responses: form.responses.length,
+        views: form.views || 0,
+        conversionRate: form.views > 0 ? ((form.responses.length / form.views) * 100).toFixed(1) : 0
+      }))
+      .sort((a, b) => b.responses - a.responses)
+      .slice(0, 4);
+    
+    // Add some default forms if no real data exists
+    if (topForms.length === 0) {
+      topForms.push(
+        { name: 'No forms yet', responses: 0, views: 0, conversionRate: 0 }
+      );
+    }
+    
+    // Device breakdown (mock data for now - would need client-side analytics)
+    const deviceBreakdown = [
+      { device: 'Desktop', percentage: 45, count: Math.floor(stats.totalResponses * 0.45) },
+      { device: 'Mobile', percentage: 35, count: Math.floor(stats.totalResponses * 0.35) },
+      { device: 'Tablet', percentage: 20, count: Math.floor(stats.totalResponses * 0.20) }
+    ];
+    
+    return {
+      weeklyResponses,
+      monthlyTrend,
+      topForms,
+      deviceBreakdown
+    };
+  }, [forms, stats]);
 
   const toggleWidget = (widgetKey) => {
     setVisibleWidgets(prev => ({
@@ -180,8 +295,8 @@ const Dashboard = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs sm:text-sm font-medium text-gray-600">Total Forms</p>
-                  <p className="text-xl sm:text-2xl font-bold text-gray-900">{inboxForms.length}</p>
-                  <p className="text-xs text-green-600 mt-1">+2 this week</p>
+                  <p className="text-xl sm:text-2xl font-bold text-gray-900">{stats.totalForms}</p>
+                  <p className="text-xs text-green-600 mt-1">+{stats.weeklyForms} this week</p>
                 </div>
                 <div className="w-8 h-8 sm:w-12 sm:h-12 bg-blue-100 rounded-full flex items-center justify-center">
                   <FileText className="w-4 h-4 sm:w-6 sm:h-6 text-blue-600" />
@@ -193,8 +308,8 @@ const Dashboard = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs sm:text-sm font-medium text-gray-600">Total Responses</p>
-                  <p className="text-xl sm:text-2xl font-bold text-gray-900">{totalResponses}</p>
-                  <p className="text-xs text-green-600 mt-1">+{Math.floor(totalResponses * 0.15)} this week</p>
+                  <p className="text-xl sm:text-2xl font-bold text-gray-900">{stats.totalResponses}</p>
+                  <p className="text-xs text-green-600 mt-1">+{stats.weeklyResponses} this week</p>
                 </div>
                 <div className="w-8 h-8 sm:w-12 sm:h-12 bg-green-100 rounded-full flex items-center justify-center">
                   <Users className="w-4 h-4 sm:w-6 sm:h-6 text-green-600" />
@@ -206,8 +321,8 @@ const Dashboard = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs sm:text-sm font-medium text-gray-600">Total Views</p>
-                  <p className="text-xl sm:text-2xl font-bold text-gray-900">{totalViews}</p>
-                  <p className="text-xs text-blue-600 mt-1">+{Math.floor(totalViews * 0.12)} this week</p>
+                  <p className="text-xl sm:text-2xl font-bold text-gray-900">{stats.totalViews}</p>
+                  <p className="text-xs text-blue-600 mt-1">+{stats.weeklyViews} this week</p>
                 </div>
                 <div className="w-8 h-8 sm:w-12 sm:h-12 bg-purple-100 rounded-full flex items-center justify-center">
                   <Eye className="w-4 h-4 sm:w-6 sm:h-6 text-purple-600" />
@@ -219,7 +334,7 @@ const Dashboard = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs sm:text-sm font-medium text-gray-600">Conversion Rate</p>
-                  <p className="text-xl sm:text-2xl font-bold text-gray-900">{conversionRate}%</p>
+                  <p className="text-xl sm:text-2xl font-bold text-gray-900">{stats.conversionRate}%</p>
                   <p className="text-xs text-green-600 mt-1">+2.3% this week</p>
                 </div>
                 <div className="w-8 h-8 sm:w-12 sm:h-12 bg-orange-100 rounded-full flex items-center justify-center">
@@ -411,7 +526,7 @@ const Dashboard = () => {
               </Link>
             </div>
             
-            {inboxForms.length === 0 ? (
+            {stats.inboxForms.length === 0 ? (
               <div className="text-center py-8">
                 <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                 <p className="text-gray-500 mb-4">No forms created yet</p>
@@ -424,7 +539,7 @@ const Dashboard = () => {
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                {inboxForms.slice(0, 6).map((form) => (
+                {stats.inboxForms.slice(0, 6).map((form) => (
                   <div key={form.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md hover:border-purple-300 transition-all group">
                     <div className="flex items-center justify-between mb-3">
                       <h3 className="font-medium text-gray-900 truncate text-sm sm:text-base group-hover:text-purple-600 transition-colors">{form.name}</h3>
