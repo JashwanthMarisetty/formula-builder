@@ -1,6 +1,6 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { FormProvider } from './contexts/FormContext';
+import { FormProvider, useForm } from './contexts/FormContextAPI';
 import { AuthProvider } from './contexts/AuthContext';
 import LandingPage from './pages/LandingPage';
 import Login from './pages/Login';
@@ -13,6 +13,7 @@ import MyForms from './pages/MyForms';
 import Profile from './pages/Profile';
 import ConditionalLogic from './pages/ConditionalLogic';
 import ActivityLogs from './pages/ActivityLogs';
+import APITest from './components/APITest';
 import ProtectedRoute from './components/ProtectedRoute';
 import './index.css';
 
@@ -69,6 +70,12 @@ function App() {
               <Route path="/form/:formId" element={
                 <ProtectedRoute>
                   <FormBuilder />
+                </ProtectedRoute>
+              } />
+              {/* Temporary API Test Route for Development */}
+              <Route path="/api-test" element={
+                <ProtectedRoute>
+                  <APITest />
                 </ProtectedRoute>
               } />
             </Routes>

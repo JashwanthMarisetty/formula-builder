@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from '../contexts/FormContext';
 import { useAuth } from '../contexts/AuthContext';
 import Navbar from '../components/Navbar';
+import APITest from '../components/APITest';
 import { Plus, BarChart3, FileText, Users, Calendar, TrendingUp, Eye, MessageSquare, ArrowRight, Settings, X } from 'lucide-react';
 
 // Move CustomizeModal outside of Dashboard component for better performance
