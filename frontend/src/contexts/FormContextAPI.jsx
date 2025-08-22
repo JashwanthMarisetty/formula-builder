@@ -115,6 +115,7 @@ export const FormProvider = ({ children }) => {
 
   // Create Form - API Integration
   const createForm = useCallback(async (formData) => {
+    console.log('FormContextAPI: Starting form creation with data:', formData);
     setIsLoading(true);
     try {
       const backendData = {
@@ -122,18 +123,26 @@ export const FormProvider = ({ children }) => {
         fields: [],
         status: 'draft'
       };
-
+      
+      console.log('FormContextAPI: Sending backend data:', backendData);
       const response = await formAPI.createForm(backendData);
+      console.log('FormContextAPI: Received response:', response);
       
       if (response.success) {
         const newForm = convertBackendToFrontend(response.data);
+        console.log('FormContextAPI: Converted form:', newForm);
         
         setForms(prev => [newForm, ...prev]);
         setCurrentForm(newForm);
         
         return newForm;
+      } else {
+        console.error('FormContextAPI: Response was not successful:', response);
+        setError('Failed to create form: Response not successful');
+        return null;
       }
     } catch (error) {
+      console.error('FormContextAPI: Error creating form:', error);
       return handleError(error, 'create form');
     } finally {
       setIsLoading(false);

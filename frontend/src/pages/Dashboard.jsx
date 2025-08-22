@@ -67,9 +67,16 @@ const Dashboard = () => {
   });
 
   const handleCreateForm = async () => {
-    const newForm = await createForm({ name: 'Untitled Form' });
-    if (newForm) {
-      navigate(`/form-builder/${newForm.id}`);
+    try {
+      const newForm = await createForm({ name: 'Untitled Form' });
+      if (newForm && newForm.id) {
+        console.log('Created form:', newForm);
+        navigate(`/form-builder/${newForm.id}`);
+      } else {
+        console.error('Form creation failed: no form returned or no ID');
+      }
+    } catch (error) {
+      console.error('Error creating form:', error);
     }
   };
 
@@ -526,28 +533,38 @@ const Dashboard = () => {
             <div className="bg-white rounded-lg shadow-sm p-4 sm:p-6">
               <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4">Recent Activity</h2>
               <div className="space-y-3 max-h-80 overflow-y-auto">
-                {recentActivity.map((activity) => {
-                  const IconComponent = activity.icon;
-                  return (
-                    <div key={activity.id} className="flex items-start space-x-3 p-2 hover:bg-gray-50 rounded-lg transition-colors">
-                      <div className={`w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center ${activity.color}`}>
-                        <IconComponent className="w-4 h-4" />
+                {recentActivity.length === 0 ? (
+                  <div className="text-center py-8">
+                    <Calendar className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-500 text-sm">No recent activity</p>
+                    <p className="text-gray-400 text-xs mt-1">Create a form to get started!</p>
+                  </div>
+                ) : (
+                  recentActivity.map((activity) => {
+                    const IconComponent = activity.icon;
+                    return (
+                      <div key={activity.id} className="flex items-start space-x-3 p-2 hover:bg-gray-50 rounded-lg transition-colors">
+                        <div className={`w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center ${activity.color}`}>
+                          <IconComponent className="w-4 h-4" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs sm:text-sm text-gray-900 leading-relaxed">{activity.message}</p>
+                          <p className="text-xs text-gray-500 mt-1">{activity.time}</p>
+                        </div>
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs sm:text-sm text-gray-900 leading-relaxed">{activity.message}</p>
-                        <p className="text-xs text-gray-500 mt-1">{activity.time}</p>
-                      </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })
+                )}
               </div>
-              <Link
-                to="/activity-logs"
-                className="mt-4 text-xs sm:text-sm text-purple-600 hover:text-purple-700 inline-flex items-center font-medium"
-              >
-                View All Activity
-                <ArrowRight className="w-3 h-3 sm:w-4 sm:h-4 ml-1" />
-              </Link>
+              {recentActivity.length > 0 && (
+                <Link
+                  to="/activity-logs"
+                  className="mt-4 text-xs sm:text-sm text-purple-600 hover:text-purple-700 inline-flex items-center font-medium"
+                >
+                  View All Activity
+                  <ArrowRight className="w-3 h-3 sm:w-4 sm:h-4 ml-1" />
+                </Link>
+              )}
             </div>
           )}
         </div>

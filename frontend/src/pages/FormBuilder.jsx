@@ -66,23 +66,16 @@ const FormBuilder = () => {
         setCurrentForm(form);
         navigationRef.current = false;
       } else {
+        // Form not found, redirect to dashboard
+        console.log('Form not found:', formId);
         navigate('/dashboard');
       }
     } else if (!isCreatingForm && !navigationRef.current) {
-      // Prevent duplicate form creation
-      setIsCreatingForm(true);
-      navigationRef.current = true;
-      
-      // Create new form
-      const newForm = createForm({ name: 'Untitled Form' });
-      navigate(`/form-builder/${newForm.id}`, { replace: true });
-      
-      // Reset creation flag after navigation
-      setTimeout(() => {
-        setIsCreatingForm(false);
-      }, 100);
+      // No formId provided, but this should be handled by Dashboard
+      // Redirect to dashboard to let it handle form creation
+      navigate('/dashboard', { replace: true });
     }
-  }, [formId, forms, setCurrentForm, createForm, navigate, isCreatingForm]);
+  }, [formId, forms, setCurrentForm, navigate, isCreatingForm]);
 
   const triggerAutoSave = useCallback(() => {
     if (autoSaveTimeout) {
