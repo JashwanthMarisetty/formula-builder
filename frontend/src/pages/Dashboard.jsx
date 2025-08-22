@@ -264,6 +264,45 @@ const Dashboard = () => {
     </div>
   );
 
+  // Show loading state
+  if (isLoading && forms.length === 0) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
+          <div className="flex items-center justify-center py-12">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
+              <p className="text-gray-600">Loading your dashboard...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <X className="h-5 w-5 text-red-400" />
+              </div>
+              <div className="ml-3">
+                <h3 className="text-sm font-medium text-red-800">Error loading dashboard</h3>
+                <p className="text-sm text-red-700 mt-1">{error}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
