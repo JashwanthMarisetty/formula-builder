@@ -106,4 +106,49 @@ export const authAPI = {
   },
 };
 
+// Form API calls
+export const formAPI = {
+  // Get all forms for the current user
+  getAllForms: async (params = {}) => {
+    const response = await api.get('/forms', { params });
+    return response.data;
+  },
+
+  // Get a single form by ID
+  getFormById: async (formId) => {
+    const response = await api.get(`/forms/${formId}`);
+    return response.data;
+  },
+
+  // Create a new form
+  createForm: async (formData) => {
+    const response = await api.post('/forms', formData);
+    return response.data;
+  },
+
+  // Update an existing form
+  updateForm: async (formId, updates) => {
+    const response = await api.put(`/forms/${formId}`, updates);
+    return response.data;
+  },
+
+  // Delete a form
+  deleteForm: async (formId) => {
+    const response = await api.delete(`/forms/${formId}`);
+    return response.data;
+  },
+
+  // Get public form (for sharing)
+  getPublicForm: async (formId) => {
+    const response = await api.get(`/forms/public/${formId}`);
+    return response.data;
+  },
+
+  // Submit a response to a form
+  submitFormResponse: async (formId, responseData) => {
+    const response = await api.post(`/forms/${formId}/responses`, responseData);
+    return response.data;
+  },
+};
+
 export default api;
