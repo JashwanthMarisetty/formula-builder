@@ -37,6 +37,10 @@ const Navbar = () => {
             <Link to="/form-builder" className="text-gray-700 hover:text-purple-600 transition-colors">
               Create Form
             </Link>
+            {/* Development API Test Link */}
+            <Link to="/api-test" className="text-red-600 hover:text-red-700 transition-colors text-sm">
+              🧪 API Test
+            </Link>
           </div>
 
           {/* User Profile - Desktop */}

@@ -66,6 +66,8 @@ const FormBuilder = () => {
         setCurrentForm(form);
         navigationRef.current = false;
       } else {
+        // Form not found, redirect to dashboard
+        console.log('Form not found:', formId);
         navigate('/dashboard');
       }
     } else if (!isCreatingForm && !navigationRef.current) {
@@ -79,6 +81,8 @@ const FormBuilder = () => {
           const newForm = await createForm({ name: 'Untitled Form' });
           if (newForm && newForm.id) {
             navigate(`/form-builder/${newForm.id}`, { replace: true });
+          } else {
+            navigate('/dashboard');
           }
         } catch (error) {
           console.error('Failed to create form:', error);
@@ -93,7 +97,7 @@ const FormBuilder = () => {
       
       handleCreateNewForm();
     }
-  }, [formId, forms, setCurrentForm, createForm, navigate, isCreatingForm]);
+  }, [formId, forms, setCurrentForm, navigate, isCreatingForm]);
 
   const triggerAutoSave = useCallback(() => {
     if (autoSaveTimeout) {
