@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
+import { formAPI } from '../services/api';
+import { useAuth } from './AuthContext';
 
 import { MAX_PAGES } from '../constants';
 
@@ -14,10 +16,12 @@ export const useForm = () => {
 };
 
 export const FormProvider = ({ children }) => {
+  const { isAuthenticated, isLoading } = useAuth();
   const [forms, setForms] = useState([]);
   const [currentForm, setCurrentForm] = useState(null);
   const [fieldConditions, setFieldConditions] = useState([]);
   const [pageConditions, setPageConditions] = useState([]);
+  const [isLoadingForms, setIsLoadingForms] = useState(false);
   const [chatbotSettings, setChatbotSettings] = useState({
     enabled: false,
     welcomeMessage: 'Hi! How can I help you today?',
@@ -25,14 +29,63 @@ export const FormProvider = ({ children }) => {
     theme: 'purple'
   });
 
+  // Load forms from backend API
+  const loadForms = useCallback(async () => {
+    const token = localStorage.getItem('formula_token');
+    
+    if (!token) {
+      // No token, user not authenticated, don't load forms
+      return;
+    }
+
+    try {
+      setIsLoadingForms(true);
+      const response = await formAPI.getAllForms();
+      
+      if (response.success) {
+        // Transform backend form structure to match frontend structure
+        // Handle both possible response formats
+        const formsArray = response.data?.forms || response.forms || [];
+        
+        const transformedForms = formsArray.map(form => ({
+          id: form._id,
+          name: form.title,
+          title: form.title,
+          fields: form.fields || [],
+          pages: [{ id: 'page-1', name: 'Page 1', fields: form.fields || [] }],
+          status: form.status,
+          visibility: 'private',
+          responses: form.responses || [],
+          createdAt: form.createdAt,
+          updatedAt: form.updatedAt,
+          location: 'inbox',
+          views: form.views || 0,
+          createdBy: form.createdBy
+        }));
+        
+        setForms(transformedForms);
+      }
+    } catch (error) {
+      console.error('Failed to load forms:', error);
+      
+      // Fallback to localStorage if API fails
+      const savedForms = localStorage.getItem('formula_forms');
+      if (savedForms) {
+        setForms(JSON.parse(savedForms));
+      }
+    } finally {
+      setIsLoadingForms(false);
+    }
+  }, []);
+
   useEffect(() => {
-    // Load forms from localStorage
-    const savedForms = localStorage.getItem('formula_forms');
-    if (savedForms) {
-      setForms(JSON.parse(savedForms));
+    // Load forms from API when component mounts and user is authenticated
+    const token = localStorage.getItem('formula_token');
+    if (token) {
+      loadForms();
     }
     
-    // Load conditions from localStorage
+    // Load conditions from localStorage (we'll migrate these to backend later)
     const savedFieldConditions = localStorage.getItem('formula_field_conditions');
     if (savedFieldConditions) {
       setFieldConditions(JSON.parse(savedFieldConditions));
@@ -42,10 +95,10 @@ export const FormProvider = ({ children }) => {
     if (savedPageConditions) {
       setPageConditions(JSON.parse(savedPageConditions));
     }
-  }, []);
+  }, [loadForms]);
 
   useEffect(() => {
-    // Save forms to localStorage whenever forms change
+    // Keep localStorage as backup (will be removed later)
     localStorage.setItem('formula_forms', JSON.stringify(forms));
   }, [forms]);
 
@@ -58,39 +111,122 @@ export const FormProvider = ({ children }) => {
     localStorage.setItem('formula_page_conditions', JSON.stringify(pageConditions));
   }, [pageConditions]);
 
-  const createForm = useCallback((formData) => {
-    const newForm = {
-      id: uuidv4(),
-      name: formData.name || 'Untitled Form',
-      fields: [],
-      pages: [{ id: 'page-1', name: 'Page 1', fields: [] }],
-      status: 'draft',
-      visibility: 'private',
-      responses: [],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      location: 'inbox'
-    };
-    
-    setForms(prev => {
-      return [...prev, newForm];
-    });
-    
-    setCurrentForm(newForm);
-    
-    return newForm;
+  // Reload forms when authentication status changes
+  useEffect(() => {
+    if (!isLoading && isAuthenticated) {
+      loadForms();
+    } else if (!isLoading && !isAuthenticated) {
+      setForms([]);
+    }
+  }, [isAuthenticated, isLoading, loadForms]);
+
+  const createForm = useCallback(async (formData) => {
+    try {
+      // Create form on backend
+      const backendFormData = {
+        title: formData.name || formData.title || 'Untitled Form',
+        fields: [],
+        status: 'draft'
+      };
+      
+      const response = await formAPI.createForm(backendFormData);
+      
+      if (response.success) {
+        // Transform backend response to frontend format
+        // Handle both possible response formats
+        const formData = response.data || response.form;
+        const newForm = {
+          id: formData._id,
+          name: formData.title,
+          title: formData.title,
+          fields: formData.fields || [],
+          pages: [{ id: 'page-1', name: 'Page 1', fields: formData.fields || [] }],
+          status: formData.status,
+          visibility: 'private',
+          responses: formData.responses || [],
+          createdAt: formData.createdAt,
+          updatedAt: formData.updatedAt,
+          location: 'inbox',
+          views: formData.views || 0,
+          createdBy: formData.createdBy
+        };
+        
+        setForms(prev => [...prev, newForm]);
+        setCurrentForm(newForm);
+        
+        return newForm;
+      } else {
+        throw new Error(response.message || 'Failed to create form');
+      }
+    } catch (error) {
+      console.error('Failed to create form:', error);
+      // Fallback to local creation
+      const newForm = {
+        id: uuidv4(),
+        name: formData.name || 'Untitled Form',
+        fields: [],
+        pages: [{ id: 'page-1', name: 'Page 1', fields: [] }],
+        status: 'draft',
+        visibility: 'private',
+        responses: [],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        location: 'inbox'
+      };
+      
+      setForms(prev => [...prev, newForm]);
+      setCurrentForm(newForm);
+      
+      return newForm;
+    }
   }, []);
 
-  const updateForm = useCallback((formId, updates) => {
-    setForms(prev => prev.map(form => 
-      form.id === formId 
-        ? { ...form, ...updates, updatedAt: new Date().toISOString() }
-        : form
-    ));
-    if (currentForm && currentForm.id === formId) {
-      setCurrentForm(prev => ({ ...prev, ...updates }));
+  const updateForm = useCallback(async (formId, updates) => {
+    try {
+      // First update the local state immediately for responsive UI
+      const updatedForm = { ...updates, updatedAt: new Date().toISOString() };
+      
+      setForms(prev => prev.map(form => 
+        form.id === formId 
+          ? { ...form, ...updatedForm }
+          : form
+      ));
+      if (currentForm && currentForm.id === formId) {
+        setCurrentForm(prev => ({ ...prev, ...updatedForm }));
+      }
+
+      // Prepare data for backend (convert frontend format to backend format)
+      const form = forms.find(f => f.id === formId) || currentForm;
+      if (!form) return;
+
+      const backendData = {
+        title: updates.name || updates.title || form.name || form.title,
+        status: updates.status || form.status,
+        fields: []
+      };
+
+      // Convert pages structure to flat fields array for backend
+      if (updates.pages) {
+        backendData.fields = updates.pages.flatMap(page => page.fields || []);
+      } else if (form.pages) {
+        backendData.fields = form.pages.flatMap(page => page.fields || []);
+      }
+
+      // Only make API call if we have essential data
+      if (backendData.title) {
+        const response = await formAPI.updateForm(formId, backendData);
+        if (response.success) {
+          console.log('Form successfully saved to database');
+        } else {
+          console.error('Failed to save form to database:', response.message);
+        }
+      }
+    } catch (error) {
+      console.error('Error updating form:', error);
+      // Don't revert local changes - keep the optimistic update
+      // This ensures the UI remains responsive even if backend fails
     }
-  }, [currentForm]);
+  }, [currentForm, forms]);
 
   const deleteForm = useCallback((formId) => {
     setForms(prev => prev.filter(form => form.id !== formId));
@@ -307,6 +443,8 @@ export const FormProvider = ({ children }) => {
     pageConditions,
     chatbotSettings,
     setChatbotSettings,
+    isLoadingForms,
+    loadForms,
     createForm,
     updateForm,
     deleteForm,
@@ -331,6 +469,8 @@ export const FormProvider = ({ children }) => {
     pageConditions,
     chatbotSettings,
     setChatbotSettings,
+    isLoadingForms,
+    loadForms,
     createForm,
     updateForm,
     deleteForm,

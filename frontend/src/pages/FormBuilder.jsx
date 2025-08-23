@@ -73,14 +73,25 @@ const FormBuilder = () => {
       setIsCreatingForm(true);
       navigationRef.current = true;
       
-      // Create new form
-      const newForm = createForm({ name: 'Untitled Form' });
-      navigate(`/form-builder/${newForm.id}`, { replace: true });
+      // Create new form asynchronously
+      const handleCreateNewForm = async () => {
+        try {
+          const newForm = await createForm({ name: 'Untitled Form' });
+          if (newForm && newForm.id) {
+            navigate(`/form-builder/${newForm.id}`, { replace: true });
+          }
+        } catch (error) {
+          console.error('Failed to create form:', error);
+          navigate('/dashboard');
+        } finally {
+          // Reset creation flag after navigation
+          setTimeout(() => {
+            setIsCreatingForm(false);
+          }, 100);
+        }
+      };
       
-      // Reset creation flag after navigation
-      setTimeout(() => {
-        setIsCreatingForm(false);
-      }, 100);
+      handleCreateNewForm();
     }
   }, [formId, forms, setCurrentForm, createForm, navigate, isCreatingForm]);
 

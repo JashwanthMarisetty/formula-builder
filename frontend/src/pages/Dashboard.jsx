@@ -65,9 +65,16 @@ const Dashboard = () => {
     performanceChart: true
   });
 
-  const handleCreateForm = () => {
-    const newForm = createForm({ name: 'Untitled Form' });
-    navigate(`/form-builder/${newForm.id}`);
+  const handleCreateForm = async () => {
+    try {
+      const newForm = await createForm({ name: 'Untitled Form' });
+      if (newForm && newForm.id) {
+        navigate(`/form-builder/${newForm.id}`);
+      }
+    } catch (error) {
+      console.error('Failed to create form:', error);
+      // You could show an error message to the user here
+    }
   };
 
   const inboxForms = forms.filter(form => form.location === 'inbox');
