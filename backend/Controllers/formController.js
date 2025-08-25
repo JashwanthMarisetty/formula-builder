@@ -15,16 +15,35 @@ const createForm = async (req, res) => {
     }
 
     // Extract data from request body
-    const { title, fields = [] } = req.body;
+    const { title, fields = [], pages = [] } = req.body;
+
+    // Initialize form data with default page if no pages provided
+    let formData = {
+      title,
+      createdBy: req.user.id,
+      status: 'draft',
+      responses: []
+    };
+
+    if (pages && pages.length > 0) {
+      // Multi-page form: use pages structure
+      formData.pages = pages;
+      // Also maintain legacy fields array for backwards compatibility
+      formData.fields = pages.flatMap(page => page.fields || []);
+    } else {
+      // Legacy or single-page form: convert fields to pages structure
+      formData.fields = fields;
+      formData.pages = [
+        {
+          id: 'page-1',
+          name: 'Page 1',
+          fields: fields
+        }
+      ];
+    }
 
     // Create new form instance
-    const form = new Form({
-      title,
-      fields,
-      createdBy: req.user.id, // This comes from auth middleware
-      status: 'draft', // Default status for new forms
-      responses: [] // Initialize with empty responses
-    });
+    const form = new Form(formData);
 
     // Save to database
     await form.save();
