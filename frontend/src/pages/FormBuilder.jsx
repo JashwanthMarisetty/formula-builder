@@ -98,24 +98,24 @@ const FormBuilder = () => {
       handleCreateNewForm();
     }
   }, [formId, forms, setCurrentForm, navigate, isCreatingForm]);
+  
+  // Sync currentForm when forms are updated (important for field operations)
+  useEffect(() => {
+    if (currentForm && formId) {
+      const updatedForm = forms.find(f => f.id === formId);
+      if (updatedForm && JSON.stringify(updatedForm) !== JSON.stringify(currentForm)) {
+        console.log('Syncing currentForm with updated forms data');
+        setCurrentForm(updatedForm);
+      }
+    }
+  }, [forms, currentForm, formId]);
 
   const triggerAutoSave = useCallback(() => {
-    if (autoSaveTimeout) {
-      clearTimeout(autoSaveTimeout);
-    }
-    
-    const timeout = setTimeout(() => {
-      if (currentForm) {
-        updateForm(currentForm.id, {
-          updatedAt: new Date().toISOString()
-        });
-        setShowAutoSaved(true);
-        setTimeout(() => setShowAutoSaved(false), 3000);
-      }
-    }, 1500);
-    
-    setAutoSaveTimeout(timeout);
-  }, [autoSaveTimeout, currentForm, updateForm]);
+    // Auto-save is now handled by individual field operations
+    // Just show the auto-save indicator
+    setShowAutoSaved(true);
+    setTimeout(() => setShowAutoSaved(false), 2000);
+  }, []);
 
   const handleAddField = useCallback((fieldData) => {
     if (currentForm) {

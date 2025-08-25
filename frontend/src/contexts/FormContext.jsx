@@ -51,18 +51,28 @@ export const FormProvider = ({ children }) => {
           // Properly handle multi-page forms from backend
           let pages = [];
           
+          console.log('🔄 Loading form from backend:', form.title, {
+            hasPages: !!form.pages,
+            pagesLength: form.pages?.length || 0,
+            fieldsLength: form.fields?.length || 0,
+            pages: form.pages?.map(p => ({ id: p.id, name: p.name, fieldsCount: p.fields?.length || 0 })) || []
+          });
+          
           if (form.pages && form.pages.length > 0) {
             // Form has pages structure from backend
             pages = form.pages;
+            console.log('✅ Using pages structure from backend:', pages.length, 'pages');
           } else if (form.fields && form.fields.length > 0) {
             // Legacy form - convert fields to single page
             pages = [{ id: 'page-1', name: 'Page 1', fields: form.fields }];
+            console.log('⚡ Converting legacy fields to single page:', form.fields.length, 'fields');
           } else {
             // Empty form - create default page
             pages = [{ id: 'page-1', name: 'Page 1', fields: [] }];
+            console.log('🆕 Creating default empty page');
           }
           
-          return {
+          const transformedForm = {
             id: form._id,
             name: form.title,
             title: form.title,
@@ -77,6 +87,12 @@ export const FormProvider = ({ children }) => {
             views: form.views || 0,
             createdBy: form.createdBy
           };
+          
+          console.log('📋 Transformed form:', transformedForm.id, {
+            pages: transformedForm.pages.map(p => ({ id: p.id, name: p.name, fieldsCount: p.fields.length }))
+          });
+          
+          return transformedForm;
         });
         
         setForms(transformedForms);
@@ -199,41 +215,43 @@ export const FormProvider = ({ children }) => {
 
   const updateForm = useCallback(async (formId, updates) => {
     try {
-      // First update the local state immediately for responsive UI
-      const updatedForm = { ...updates, updatedAt: new Date().toISOString() };
+      // Get the current form data before updating
+      const currentFormData = forms.find(f => f.id === formId) || currentForm;
+      if (!currentFormData) return;
       
+      // Create the updated form object with the merged data
+      const updatedFormData = {
+        ...currentFormData,
+        ...updates,
+        updatedAt: new Date().toISOString()
+      };
+      
+      // Update local state immediately for responsive UI
       setForms(prev => prev.map(form => 
         form.id === formId 
-          ? { ...form, ...updatedForm }
+          ? updatedFormData
           : form
       ));
       if (currentForm && currentForm.id === formId) {
-        setCurrentForm(prev => ({ ...prev, ...updatedForm }));
+        setCurrentForm(updatedFormData);
       }
 
-      // Prepare data for backend (convert frontend format to backend format)
-      const form = forms.find(f => f.id === formId) || currentForm;
-      if (!form) return;
+      // Prepare data for backend with the updated form data
+      const backendData = {
+        title: updatedFormData.name || updatedFormData.title,
+        status: updatedFormData.status,
+        pages: updatedFormData.pages || [],
+        // Also include flat fields for backwards compatibility
+        fields: updatedFormData.pages ? updatedFormData.pages.flatMap(page => page.fields || []) : []
+      };
 
-      // Get the most up-to-date form data (after local state update)
-      const latestForm = forms.find(f => f.id === formId);
-      if (latestForm) {
-        const backendData = {
-          title: latestForm.name || latestForm.title,
-          status: latestForm.status,
-          pages: latestForm.pages || [],
-          // Also include flat fields for backwards compatibility
-          fields: latestForm.pages ? latestForm.pages.flatMap(page => page.fields || []) : []
-        };
-
-        // Only make API call if we have essential data
-        if (backendData.title && backendData.pages.length > 0) {
-          const response = await formAPI.updateForm(formId, backendData);
-          if (response.success) {
-            console.log('Form successfully saved to database with pages structure');
-          } else {
-            console.error('Failed to save form to database:', response.message);
-          }
+      // Only make API call if we have essential data
+      if (backendData.title) {
+        const response = await formAPI.updateForm(formId, backendData);
+        if (response.success) {
+          console.log('Form successfully saved to database with pages structure');
+        } else {
+          console.error('Failed to save form to database:', response.message);
         }
       }
     } catch (error) {
@@ -265,41 +283,74 @@ export const FormProvider = ({ children }) => {
     updateForm(formId, { location: 'inbox' });
   }, [updateForm]);
 
-  const addField = useCallback((formId, pageId, field) => {
+  const addField = useCallback(async (formId, pageId, field) => {
+    console.log('🔸 Adding field to form:', formId, 'page:', pageId, 'field:', field.type);
+    
     const newField = {
       id: uuidv4(),
       ...field,
       createdAt: new Date().toISOString()
     };
     
+    // Get current form data before updating
+    const currentFormData = forms.find(f => f.id === formId) || currentForm;
+    if (!currentFormData) {
+      console.error('❌ Form not found:', formId);
+      return;
+    }
+    
+    console.log('🔸 Current form pages before update:', currentFormData.pages.length);
+    
+    // Update local state immediately for responsive UI
+    const updatedFormData = {
+      ...currentFormData,
+      pages: currentFormData.pages.map(page => 
+        page.id === pageId 
+          ? { 
+              ...page, 
+              fields: [...page.fields, newField]
+            }
+          : page
+      ),
+      updatedAt: new Date().toISOString()
+    };
+    
+    console.log('🔸 Updated form pages after adding field:', updatedFormData.pages.map(p => ({ id: p.id, fields: p.fields.length })));
+    
+    // Update both forms array and currentForm
     setForms(prev => prev.map(form => 
-      form.id === formId 
-        ? {
-            ...form,
-            pages: form.pages.map(page => 
-              page.id === pageId 
-                ? { ...page, fields: [...page.fields, newField] }
-                : page
-            ),
-            updatedAt: new Date().toISOString()
-          }
-        : form
+      form.id === formId ? updatedFormData : form
     ));
     
     if (currentForm && currentForm.id === formId) {
-      setCurrentForm(prev => ({
-        ...prev,
-        pages: prev.pages.map(page => 
-          page.id === pageId 
-            ? { ...page, fields: [...page.fields, newField] }
-            : page
-        )
-      }));
+      setCurrentForm(updatedFormData);
     }
-  }, [currentForm]);
+    
+    // Save to backend automatically
+    try {
+      const backendData = {
+        title: updatedFormData.name || updatedFormData.title,
+        status: updatedFormData.status,
+        pages: updatedFormData.pages || [],
+        fields: updatedFormData.pages ? updatedFormData.pages.flatMap(page => page.fields || []) : []
+      };
+      
+      console.log('🔸 Saving to backend - total fields:', backendData.fields.length, 'pages:', backendData.pages.length);
+      const response = await formAPI.updateForm(formId, backendData);
+      
+      if (response.success) {
+        console.log('✅ Field added and saved to database successfully');
+      } else {
+        console.error('❌ Failed to save field to database:', response.message);
+      }
+    } catch (error) {
+      console.error('❌ Error saving field to database:', error);
+    }
+  }, [currentForm, forms]);
 
-  const updateField = useCallback((formId, pageId, fieldId, updates) => {
-    setForms(prev => prev.map(form => 
+  const updateField = useCallback(async (formId, pageId, fieldId, updates) => {
+    // Update local state immediately for responsive UI
+    const updatedForms = forms.map(form => 
       form.id === formId 
         ? {
             ...form,
@@ -318,12 +369,15 @@ export const FormProvider = ({ children }) => {
             updatedAt: new Date().toISOString()
           }
         : form
-    ));
+    );
     
+    setForms(updatedForms);
+    
+    let updatedCurrentForm = null;
     if (currentForm && currentForm.id === formId) {
-      setCurrentForm(prev => ({
-        ...prev,
-        pages: prev.pages.map(page => 
+      updatedCurrentForm = {
+        ...currentForm,
+        pages: currentForm.pages.map(page => 
           page.id === pageId 
             ? {
                 ...page,
@@ -334,12 +388,32 @@ export const FormProvider = ({ children }) => {
                 )
               }
             : page
-        )
-      }));
+        ),
+        updatedAt: new Date().toISOString()
+      };
+      setCurrentForm(updatedCurrentForm);
     }
-  }, [currentForm]);
+    
+    // Save to backend automatically
+    try {
+      const formToSave = updatedForms.find(f => f.id === formId) || updatedCurrentForm;
+      if (formToSave) {
+        const backendData = {
+          title: formToSave.name || formToSave.title,
+          status: formToSave.status,
+          pages: formToSave.pages || [],
+          fields: formToSave.pages ? formToSave.pages.flatMap(page => page.fields || []) : []
+        };
+        
+        await formAPI.updateForm(formId, backendData);
+        console.log('Field updated and saved to database');
+      }
+    } catch (error) {
+      console.error('Error saving updated field to database:', error);
+    }
+  }, [currentForm, forms]);
 
-  const removeField = useCallback((formId, pageId, fieldId) => {
+  const removeField = useCallback(async (formId, pageId, fieldId) => {
     // Remove related conditions when field is deleted
     setFieldConditions(prev => prev.filter(condition => 
       condition.triggerFieldId !== fieldId && condition.targetFieldId !== fieldId
@@ -348,7 +422,8 @@ export const FormProvider = ({ children }) => {
       condition.triggerFieldId !== fieldId
     ));
     
-    setForms(prev => prev.map(form => 
+    // Update local state immediately for responsive UI
+    const updatedForms = forms.map(form => 
       form.id === formId 
         ? {
             ...form,
@@ -360,19 +435,42 @@ export const FormProvider = ({ children }) => {
             updatedAt: new Date().toISOString()
           }
         : form
-    ));
+    );
     
+    setForms(updatedForms);
+    
+    let updatedCurrentForm = null;
     if (currentForm && currentForm.id === formId) {
-      setCurrentForm(prev => ({
-        ...prev,
-        pages: prev.pages.map(page => 
+      updatedCurrentForm = {
+        ...currentForm,
+        pages: currentForm.pages.map(page => 
           page.id === pageId 
             ? { ...page, fields: page.fields.filter(field => field.id !== fieldId) }
             : page
-        )
-      }));
+        ),
+        updatedAt: new Date().toISOString()
+      };
+      setCurrentForm(updatedCurrentForm);
     }
-  }, [currentForm]);
+    
+    // Save to backend automatically
+    try {
+      const formToSave = updatedForms.find(f => f.id === formId) || updatedCurrentForm;
+      if (formToSave) {
+        const backendData = {
+          title: formToSave.name || formToSave.title,
+          status: formToSave.status,
+          pages: formToSave.pages || [],
+          fields: formToSave.pages ? formToSave.pages.flatMap(page => page.fields || []) : []
+        };
+        
+        await formAPI.updateForm(formId, backendData);
+        console.log('Field removed and saved to database');
+      }
+    } catch (error) {
+      console.error('Error saving removed field to database:', error);
+    }
+  }, [currentForm, forms]);
 
   const addFormPage = useCallback((formId) => {
     const form = forms.find(f => f.id === formId);
