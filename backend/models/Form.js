@@ -31,7 +31,67 @@ const formSchema = new mongoose.Schema(
       required: true,
     },
 
-    // Array of form fields/questions
+    // Multi-page structure for forms
+    pages: [
+      {
+        id: {
+          type: String,
+          required: true,
+        },
+        name: {
+          type: String,
+          required: true,
+          default: 'Page 1'
+        },
+        fields: [
+          {
+            id: {
+              type: String,
+              required: true,
+            },
+            type: {
+              type: String,
+              enum: [
+                "text",
+                "email",
+                "number",
+                "textarea",
+                "select",
+                "radio",
+                "checkbox",
+                "date",
+                "time",
+                "file",
+                "phone",
+                "rating",
+                "address",
+              ],
+              required: true,
+            },
+            label: {
+              type: String,
+              required: true,
+              trim: true,
+            },
+            placeholder: {
+              type: String,
+              default: "",
+            },
+            required: {
+              type: Boolean,
+              default: false,
+            },
+            options: [
+              {
+                type: String,
+              },
+            ],
+          },
+        ]
+      }
+    ],
+
+    // Legacy fields array for backwards compatibility
     fields: [
       {
         id: {
