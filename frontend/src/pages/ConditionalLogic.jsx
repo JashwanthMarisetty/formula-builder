@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { useForm } from '../contexts/FormContextAPI';
+import { useForm } from '../contexts/FormContext';
 import { CONDITION_STATES } from '../constants';
 import Navbar from '../components/Navbar';
 import ConditionalRuleBlock from '../components/ConditionalLogic/ConditionalRuleBlock';
