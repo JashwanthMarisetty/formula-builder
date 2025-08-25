@@ -47,21 +47,37 @@ export const FormProvider = ({ children }) => {
         // Handle both possible response formats
         const formsArray = response.data?.forms || response.forms || [];
         
-        const transformedForms = formsArray.map(form => ({
-          id: form._id,
-          name: form.title,
-          title: form.title,
-          fields: form.fields || [],
-          pages: [{ id: 'page-1', name: 'Page 1', fields: form.fields || [] }],
-          status: form.status,
-          visibility: 'private',
-          responses: form.responses || [],
-          createdAt: form.createdAt,
-          updatedAt: form.updatedAt,
-          location: 'inbox',
-          views: form.views || 0,
-          createdBy: form.createdBy
-        }));
+        const transformedForms = formsArray.map(form => {
+          // Properly handle multi-page forms from backend
+          let pages = [];
+          
+          if (form.pages && form.pages.length > 0) {
+            // Form has pages structure from backend
+            pages = form.pages;
+          } else if (form.fields && form.fields.length > 0) {
+            // Legacy form - convert fields to single page
+            pages = [{ id: 'page-1', name: 'Page 1', fields: form.fields }];
+          } else {
+            // Empty form - create default page
+            pages = [{ id: 'page-1', name: 'Page 1', fields: [] }];
+          }
+          
+          return {
+            id: form._id,
+            name: form.title,
+            title: form.title,
+            fields: form.fields || [],
+            pages: pages,
+            status: form.status,
+            visibility: 'private',
+            responses: form.responses || [],
+            createdAt: form.createdAt,
+            updatedAt: form.updatedAt,
+            location: 'inbox',
+            views: form.views || 0,
+            createdBy: form.createdBy
+          };
+        });
         
         setForms(transformedForms);
       }

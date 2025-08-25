@@ -319,6 +319,21 @@ const updateForm = async (req, res) => {
     delete updateData.createdBy;
     delete updateData.createdAt;
     
+    // Handle pages structure - update both pages and fields
+    if (updateData.pages) {
+      // If pages are provided, also update the flat fields array for backwards compatibility
+      updateData.fields = updateData.pages.flatMap(page => page.fields || []);
+    } else if (updateData.fields) {
+      // If only fields provided, convert to pages structure
+      updateData.pages = [
+        {
+          id: 'page-1',
+          name: 'Page 1',
+          fields: updateData.fields
+        }
+      ];
+    }
+    
     // Check if form exists and user owns it
     const form = await Form.findById(id);
     if (!form) {
