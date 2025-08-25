@@ -51,28 +51,18 @@ export const FormProvider = ({ children }) => {
           // Properly handle multi-page forms from backend
           let pages = [];
           
-          console.log('🔄 Loading form from backend:', form.title, {
-            hasPages: !!form.pages,
-            pagesLength: form.pages?.length || 0,
-            fieldsLength: form.fields?.length || 0,
-            pages: form.pages?.map(p => ({ id: p.id, name: p.name, fieldsCount: p.fields?.length || 0 })) || []
-          });
-          
           if (form.pages && form.pages.length > 0) {
             // Form has pages structure from backend
             pages = form.pages;
-            console.log('✅ Using pages structure from backend:', pages.length, 'pages');
           } else if (form.fields && form.fields.length > 0) {
             // Legacy form - convert fields to single page
             pages = [{ id: 'page-1', name: 'Page 1', fields: form.fields }];
-            console.log('⚡ Converting legacy fields to single page:', form.fields.length, 'fields');
           } else {
             // Empty form - create default page
             pages = [{ id: 'page-1', name: 'Page 1', fields: [] }];
-            console.log('🆕 Creating default empty page');
           }
           
-          const transformedForm = {
+          return {
             id: form._id,
             name: form.title,
             title: form.title,
@@ -87,12 +77,6 @@ export const FormProvider = ({ children }) => {
             views: form.views || 0,
             createdBy: form.createdBy
           };
-          
-          console.log('📋 Transformed form:', transformedForm.id, {
-            pages: transformedForm.pages.map(p => ({ id: p.id, name: p.name, fieldsCount: p.fields.length }))
-          });
-          
-          return transformedForm;
         });
         
         setForms(transformedForms);
