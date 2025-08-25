@@ -215,26 +215,25 @@ export const FormProvider = ({ children }) => {
       const form = forms.find(f => f.id === formId) || currentForm;
       if (!form) return;
 
-      const backendData = {
-        title: updates.name || updates.title || form.name || form.title,
-        status: updates.status || form.status,
-        fields: []
-      };
+      // Get the most up-to-date form data (after local state update)
+      const latestForm = forms.find(f => f.id === formId);
+      if (latestForm) {
+        const backendData = {
+          title: latestForm.name || latestForm.title,
+          status: latestForm.status,
+          pages: latestForm.pages || [],
+          // Also include flat fields for backwards compatibility
+          fields: latestForm.pages ? latestForm.pages.flatMap(page => page.fields || []) : []
+        };
 
-      // Convert pages structure to flat fields array for backend
-      if (updates.pages) {
-        backendData.fields = updates.pages.flatMap(page => page.fields || []);
-      } else if (form.pages) {
-        backendData.fields = form.pages.flatMap(page => page.fields || []);
-      }
-
-      // Only make API call if we have essential data
-      if (backendData.title) {
-        const response = await formAPI.updateForm(formId, backendData);
-        if (response.success) {
-          console.log('Form successfully saved to database');
-        } else {
-          console.error('Failed to save form to database:', response.message);
+        // Only make API call if we have essential data
+        if (backendData.title && backendData.pages.length > 0) {
+          const response = await formAPI.updateForm(formId, backendData);
+          if (response.success) {
+            console.log('Form successfully saved to database with pages structure');
+          } else {
+            console.error('Failed to save form to database:', response.message);
+          }
         }
       }
     } catch (error) {
