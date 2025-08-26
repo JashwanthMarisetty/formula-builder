@@ -11,9 +11,6 @@ const formSchema = new mongoose.Schema(
       maxlength: [200, "Form title cannot exceed 200 characters"],
     },
 
-    // Who created this form?
-    //which relationship is this
-
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",

@@ -118,7 +118,7 @@ frontend/src/
 ### Adding New Features
 1. **Backend**: Add route → controller → model updates if needed
 2. **Frontend**: Update context → add/modify components → integrate API calls
-3. **Test**: Use `/api-test` route or Postman collections from `api-test-examples.md`
+3. **Test**: Use Postman or other API testing tools to verify endpoints
 
 ### Database Operations
 - MongoDB connection via Mongoose ODM
@@ -139,8 +139,7 @@ frontend/src/
 ## Testing & Debugging
 
 ### API Testing
-- Use `api-test-examples.md` for comprehensive API testing examples
-- Development route `/api-test` available for frontend API testing
+- Use Postman, cURL, or other API testing tools for comprehensive API testing
 - Test authentication flow: register → login → protected operations
 
 ### Common Issues

@@ -13,7 +13,6 @@ import MyForms from './pages/MyForms';
 import Profile from './pages/Profile';
 import ConditionalLogic from './pages/ConditionalLogic';
 import ActivityLogs from './pages/ActivityLogs';
-import APITest from './components/APITest';
 import ProtectedRoute from './components/ProtectedRoute';
 import './index.css';
 
@@ -70,12 +69,6 @@ function App() {
               <Route path="/form/:formId" element={
                 <ProtectedRoute>
                   <FormBuilder />
-                </ProtectedRoute>
-              } />
-              {/* Temporary API Test Route for Development */}
-              <Route path="/api-test" element={
-                <ProtectedRoute>
-                  <APITest />
                 </ProtectedRoute>
               } />
             </Routes>

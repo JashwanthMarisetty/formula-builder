@@ -90,9 +90,6 @@ const Register = () => {
             <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
               Create your account
             </h1>
-            <p className="text-gray-600 mt-2 text-sm sm:text-base">
-              Join thousands of users building beautiful forms
-            </p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
