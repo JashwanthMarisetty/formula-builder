@@ -30,15 +30,17 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    if (error.response?.status === 401 && !originalRequest._retry && !originalRequest.url?.includes('/users/refresh-token')) {
       originalRequest._retry = true;
       
       const refreshToken = localStorage.getItem('formula_refresh_token');
       if (refreshToken) {
         try {
-          const response = await api.post('/users/refresh-token', {
-            refreshToken: refreshToken,
-          });
+          // Use direct axios call to avoid triggering interceptors
+          const response = await axios.post(
+            (import.meta.env.VITE_API_URL || 'http://localhost:5000/api') + '/users/refresh-token',
+            { refreshToken }
+          );
           
           const { token, refreshToken: newRefreshToken } = response.data;
           localStorage.setItem('formula_token', token);
