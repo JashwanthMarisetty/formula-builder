@@ -151,6 +151,18 @@ export const formAPI = {
     const response = await api.post(`/forms/${formId}/submit`, responseData);
     return response.data;
   },
+
+  // Get all responses for a form
+  getFormResponses: async (formId, params = {}) => {
+    const response = await api.get(`/forms/${formId}/responses`, { params });
+    return response.data;
+  },
+
+  // Get a single response by ID
+  getResponseById: async (formId, responseId) => {
+    const response = await api.get(`/forms/${formId}/responses/${responseId}`);
+    return response.data;
+  },
 };
 
 export default api;
