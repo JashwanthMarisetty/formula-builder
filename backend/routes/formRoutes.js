@@ -7,7 +7,9 @@ const {
   updateForm,
   deleteForm,
   submitFormResponse,
-  getPublicForm
+  getPublicForm,
+  getFormResponses,
+  getResponseById
 } = require("../Controllers/formController");
 const { auth } = require("../middleware/auth");
 const {
@@ -37,5 +39,12 @@ router.get("/public/:id", getPublicForm);
 
 // POST /api/forms/:id/submit - Submit response to form
 router.post("/:id/submit", submitFormResponse);
+
+// RESPONSE MANAGEMENT ROUTES (auth required)
+// GET /api/forms/:id/responses - Get all responses for a form
+router.get("/:id/responses", auth, getFormResponses);
+
+// GET /api/forms/:formId/responses/:responseId - Get a single response
+router.get("/:formId/responses/:responseId", auth, getResponseById);
 
 module.exports = router;
