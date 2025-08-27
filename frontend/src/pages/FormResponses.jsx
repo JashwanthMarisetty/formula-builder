@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useForm } from '../contexts/FormContext';
+import { formAPI } from '../services/api';
 import { filterResponsesByDate, getDateRangeDescription } from '../utils/dateFilters';
 import Navbar from '../components/Navbar';
-import { ArrowLeft, Download, Filter, Calendar, Search, BarChart3, PieChart, TrendingUp, Users } from 'lucide-react';
+import { ArrowLeft, Download, Filter, Calendar, Search, BarChart3, PieChart, TrendingUp, Users, Loader2 } from 'lucide-react';
 
 const FormResponses = () => {
   const { formId } = useParams();
