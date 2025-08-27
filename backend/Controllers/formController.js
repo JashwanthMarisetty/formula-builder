@@ -634,6 +634,61 @@ const getFormResponses = async (req, res) => {
   }
 };
 
+// Get a single response by ID
+const getResponseById = async (req, res) => {
+  try {
+    const { formId, responseId } = req.params;
+    
+    const form = await Form.findById(formId)
+      .select('title responses createdBy fields pages')
+      .lean();
+    
+    if (!form) {
+      return res.status(404).json({
+        success: false,
+        message: "Form not found"
+      });
+    }
+    
+    // Check ownership
+    if (form.createdBy.toString() !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied"
+      });
+    }
+    
+    const response = form.responses.find(r => r.id === responseId);
+    
+    if (!response) {
+      return res.status(404).json({
+        success: false,
+        message: "Response not found"
+      });
+    }
+    
+    res.status(200).json({
+      success: true,
+      message: "Response retrieved successfully",
+      data: {
+        formTitle: form.title,
+        formFields: form.fields || [],
+        formPages: form.pages || [],
+        response
+      }
+    });
+    
+  } catch (error) {
+    console.error("Error retrieving response:", error);
+    res.status(500).json({ 
+      success: false,
+      message: "Server error",
+      error: error.message 
+    });
+  }
+};
+
+
 
 module.exports = {
   createForm,
