@@ -699,7 +699,5 @@ module.exports = {
   submitFormResponse,
   getPublicForm,
   getFormResponses,
-  getResponseById,
-  deleteResponse,
-  getResponseAnalytics
+  getResponseById
 };

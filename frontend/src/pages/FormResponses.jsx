@@ -16,9 +16,52 @@ const FormResponses = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [showVisualization, setShowVisualization] = useState(false);
   const [selectedVisualization, setSelectedVisualization] = useState('overview');
+  
+  // New state for API responses
+  const [responses, setResponses] = useState([]);
+  const [isLoadingResponses, setIsLoadingResponses] = useState(false);
+  const [responseError, setResponseError] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalResponses, setTotalResponses] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
 
   const form = forms.find(f => f.id === formId);
-  const responses = form?.responses || [];
+  
+  // Load responses from API
+  useEffect(() => {
+    const loadResponses = async () => {
+      if (!formId || !form) return;
+      
+      setIsLoadingResponses(true);
+      setResponseError(null);
+      
+      try {
+        const result = await formAPI.getFormResponses(formId, {
+          page: currentPage,
+          limit: 50
+        });
+        
+        if (result.success) {
+          if (currentPage === 1) {
+            setResponses(result.data.responses);
+          } else {
+            setResponses(prev => [...prev, ...result.data.responses]);
+          }
+          setTotalResponses(result.data.pagination.totalCount);
+          setHasMore(result.data.pagination.hasNextPage);
+        }
+      } catch (error) {
+        console.error('Error loading responses:', error);
+        setResponseError(error.message);
+        // Fallback to form context data
+        setResponses(form?.responses || []);
+      } finally {
+        setIsLoadingResponses(false);
+      }
+    };
+    
+    loadResponses();
+  }, [formId, form, currentPage]);
 
   // Get all fields for filtering
   const allFields = form?.pages?.flatMap(page => page.fields) || [];
@@ -491,7 +534,30 @@ const FormResponses = () => {
 
           {/* Responses Table */}
           <div className="overflow-x-auto">
-            {filteredResponses.length === 0 ? (
+            {isLoadingResponses ? (
+              <div className="text-center py-12">
+                <Loader2 className="w-12 h-12 text-purple-600 mx-auto mb-4 animate-spin" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">Loading responses...</h3>
+                <p className="text-gray-600">Please wait while we fetch your form responses.</p>
+              </div>
+            ) : responseError ? (
+              <div className="text-center py-12">
+                <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Calendar className="w-6 h-6 text-red-600" />
+                </div>
+                <h3 className="text-lg font-medium text-red-900 mb-2">Error loading responses</h3>
+                <p className="text-red-600 mb-4">{responseError}</p>
+                <button
+                  onClick={() => {
+                    setCurrentPage(1);
+                    setResponseError(null);
+                  }}
+                  className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                >
+                  Try Again
+                </button>
+              </div>
+            ) : filteredResponses.length === 0 ? (
               <div className="text-center py-12">
                 <Calendar className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">
