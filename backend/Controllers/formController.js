@@ -563,6 +563,78 @@ const getPublicForm = async (req, res) => {
   }
 };
 
+// Get responses for a specific form
+const getFormResponses = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { page = 1, limit = 50, sortBy = 'submittedAt', sortOrder = 'desc' } = req.query;
+    
+    const form = await Form.findById(id)
+      .select('title responses createdBy')
+      .lean();
+    
+    if (!form) {
+      return res.status(404).json({
+        success: false,
+        message: "Form not found"
+      });
+    }
+    
+    // Check ownership
+    if (form.createdBy.toString() !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied"
+      });
+    }
+    
+    // Pagination
+    const pageNumber = parseInt(page, 10);
+    const limitNumber = parseInt(limit, 10);
+    const skip = (pageNumber - 1) * limitNumber;
+    
+    // Sort responses
+    const sortDirection = sortOrder === 'asc' ? 1 : -1;
+    const sortedResponses = form.responses.sort((a, b) => {
+      if (sortBy === 'submittedAt') {
+        return sortDirection * (new Date(a.submittedAt) - new Date(b.submittedAt));
+      }
+      return 0;
+    });
+    
+    // Apply pagination
+    const paginatedResponses = sortedResponses.slice(skip, skip + limitNumber);
+    const totalCount = form.responses.length;
+    const totalPages = Math.ceil(totalCount / limitNumber);
+    
+    res.status(200).json({
+      success: true,
+      message: "Responses retrieved successfully",
+      data: {
+        formTitle: form.title,
+        responses: paginatedResponses,
+        pagination: {
+          currentPage: pageNumber,
+          totalPages,
+          totalCount,
+          limit: limitNumber,
+          hasNextPage: pageNumber < totalPages,
+          hasPreviousPage: pageNumber > 1
+        }
+      }
+    });
+    
+  } catch (error) {
+    console.error("Error retrieving responses:", error);
+    res.status(500).json({ 
+      success: false,
+      message: "Server error",
+      error: error.message 
+    });
+  }
+};
+
+
 module.exports = {
   createForm,
   getAllForms,
@@ -570,5 +642,9 @@ module.exports = {
   updateForm,
   deleteForm,
   submitFormResponse,
-  getPublicForm
+  getPublicForm,
+  getFormResponses,
+  getResponseById,
+  deleteResponse,
+  getResponseAnalytics
 };

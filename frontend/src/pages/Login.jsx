@@ -25,7 +25,7 @@ const Login = () => {
     } catch (err) {
       console.error('Google Sign In error:', err);
       setError(err.message || 'Google Sign In failed. Please try again.');
-    } finally {
+    } finally { 
       setIsLoading(false);
     }
   };
