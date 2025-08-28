@@ -9,7 +9,8 @@ const {
   submitFormResponse,
   getPublicForm,
   getFormResponses,
-  getResponseById
+  getResponseById,
+  deleteResponse
 } = require("../Controllers/formController");
 const { auth } = require("../middleware/auth");
 const {
@@ -46,5 +47,8 @@ router.get("/:id/responses", auth, getFormResponses);
 
 // GET /api/forms/:formId/responses/:responseId - Get a single response
 router.get("/:formId/responses/:responseId", auth, getResponseById);
+
+// DELETE /api/forms/:formId/responses/:responseId - Delete a specific response
+router.delete("/:formId/responses/:responseId", auth, deleteResponse);
 
 module.exports = router;

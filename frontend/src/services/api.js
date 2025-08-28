@@ -163,6 +163,12 @@ export const formAPI = {
     const response = await api.get(`/forms/${formId}/responses/${responseId}`);
     return response.data;
   },
+
+  // Delete a specific response
+  deleteResponse: async (formId, responseId) => {
+    const response = await api.delete(`/forms/${formId}/responses/${responseId}`);
+    return response.data;
+  },
 };
 
 export default api;
