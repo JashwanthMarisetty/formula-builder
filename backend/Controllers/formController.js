@@ -703,6 +703,14 @@ const deleteResponse = async (req, res) => {
       });
     }
     
+    // Check ownership - only form owner can delete responses
+    if (form.createdBy.toString() !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied. You can only delete responses from your own forms."
+      });
+    }
+    
     // Find the response to delete
     const responseIndex = form.responses.findIndex(r => r.id === responseId);
     
