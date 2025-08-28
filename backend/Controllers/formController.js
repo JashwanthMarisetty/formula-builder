@@ -688,7 +688,71 @@ const getResponseById = async (req, res) => {
   }
 };
 
-
+// Delete a specific response
+const deleteResponse = async (req, res) => {
+  try {
+    const { formId, responseId } = req.params;
+    
+    // Find the form
+    const form = await Form.findById(formId);
+    
+    if (!form) {
+      return res.status(404).json({
+        success: false,
+        message: "Form not found"
+      });
+    }
+    
+    // Find the response to delete
+    const responseIndex = form.responses.findIndex(r => r.id === responseId);
+    
+    if (responseIndex === -1) {
+      return res.status(404).json({
+        success: false,
+        message: "Response not found"
+      });
+    }
+    
+    // Store response data for logging (optional)
+    const deletedResponse = form.responses[responseIndex];
+    
+    // Remove the response from the array
+    form.responses.splice(responseIndex, 1);
+    
+    // Save the form
+    await form.save();
+    
+    // Log the deletion for audit purposes
+    console.log(`Response ${responseId} deleted from form ${formId} by user ${req.user.id}`);
+    
+    res.status(200).json({
+      success: true,
+      message: "Response deleted successfully",
+      data: {
+        deletedResponseId: responseId,
+        remainingResponses: form.responses.length,
+        deletedAt: new Date().toISOString()
+      }
+    });
+    
+  } catch (error) {
+    console.error("Error deleting response:", error);
+    
+    // Handle specific MongoDB errors
+    if (error.name === 'CastError') {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid form or response ID format"
+      });
+    }
+    
+    res.status(500).json({ 
+      success: false,
+      message: "Server error while deleting response",
+      error: error.message 
+    });
+  }
+};
 
 module.exports = {
   createForm,
@@ -699,5 +763,6 @@ module.exports = {
   submitFormResponse,
   getPublicForm,
   getFormResponses,
-  getResponseById
+  getResponseById,
+  deleteResponse
 };
