@@ -4,7 +4,7 @@ import { useForm } from '../contexts/FormContext';
 import { formAPI } from '../services/api';
 import { filterResponsesByDate, getDateRangeDescription } from '../utils/dateFilters';
 import Navbar from '../components/Navbar';
-import { ArrowLeft, Download, Filter, Calendar, Search, BarChart3, PieChart, TrendingUp, Users, Loader2 } from 'lucide-react';
+import { ArrowLeft, Download, Filter, Calendar, Search, BarChart3, PieChart, TrendingUp, Users, Loader2, Trash2, AlertTriangle } from 'lucide-react';
 
 const FormResponses = () => {
   const { formId } = useParams();
@@ -205,6 +205,35 @@ const FormResponses = () => {
   };
 
   const visualizationData = getAdvancedVisualizationData();
+
+  // Handle delete response
+  const [deletingResponseId, setDeletingResponseId] = useState(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(null);
+
+  const handleDeleteResponse = async (responseId) => {
+    if (!responseId || !form) return;
+    
+    setDeletingResponseId(responseId);
+    
+    try {
+      const result = await formAPI.deleteResponse(form.id, responseId);
+      
+      if (result.success) {
+        // Remove the response from the local state
+        setResponses(prev => prev.filter(response => response.id !== responseId));
+        setTotalResponses(prev => prev - 1);
+        setShowDeleteConfirm(null);
+        
+        // Show success message (optional)
+        console.log('Response deleted successfully');
+      }
+    } catch (error) {
+      console.error('Error deleting response:', error);
+      alert('Failed to delete response: ' + error.message);
+    } finally {
+      setDeletingResponseId(null);
+    }
+  };
 
   const OverviewVisualization = ({ data }) => (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -585,6 +614,9 @@ const FormResponses = () => {
                           </th>
                         ))
                       )}
+                      <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                        Actions
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
@@ -613,6 +645,20 @@ const FormResponses = () => {
                             </td>
                           ))
                         )}
+                        <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          <button
+                            onClick={() => setShowDeleteConfirm(response.id)}
+                            disabled={deletingResponseId === response.id}
+                            className="text-red-600 hover:text-red-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            title="Delete response"
+                          >
+                            {deletingResponseId === response.id ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <Trash2 className="w-4 h-4" />
+                            )}
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
