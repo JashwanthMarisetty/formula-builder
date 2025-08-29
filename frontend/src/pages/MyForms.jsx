@@ -154,7 +154,11 @@ const MyForms = () => {
       // Handle share action
       const formUrl = `${window.location.origin}/fill/${formId}`;
       navigator.clipboard.writeText(formUrl);
-      // You could show a toast notification here
+      setShowSuccessModal({ 
+        type: 'share', 
+        message: 'Share link copied to clipboard! Send this link to anyone to fill your form.' 
+      });
+      setTimeout(() => setShowSuccessModal(null), 4000);
     } else {
       setShowConfirmModal({ action, formId });
     }

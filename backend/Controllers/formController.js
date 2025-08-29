@@ -528,7 +528,7 @@ const getPublicForm = async (req, res) => {
     const { id } = req.params;
     
     const form = await Form.findById(id)
-      .select('title fields status views')
+      .select('title fields status views pages createdAt updatedAt')
       .lean();
     
     if (!form) {
@@ -538,12 +538,33 @@ const getPublicForm = async (req, res) => {
       });
     }
     
-    if (form.status !== 'published') {
+    // Allow both published and draft forms for testing
+    // In production, you might want to keep the published-only restriction
+    if (form.status !== 'published' && form.status !== 'draft') {
       return res.status(400).json({
         success: false,
-        message: "Form is not available"
+        message: "Form is not available for public access"
       });
     }
+    
+    // Ensure pages exist, create from fields if needed (backwards compatibility)
+    let formData = { ...form };
+    if (!formData.pages || formData.pages.length === 0) {
+      if (formData.fields && formData.fields.length > 0) {
+        formData.pages = [
+          {
+            id: 'page-1',
+            name: 'Page 1',
+            fields: formData.fields
+          }
+        ];
+      } else {
+        formData.pages = [];
+      }
+    }
+    
+    // Add name field for frontend compatibility
+    formData.name = formData.title;
     
     // Increment view count
     await Form.findByIdAndUpdate(id, { $inc: { views: 1 } });
@@ -551,14 +572,24 @@ const getPublicForm = async (req, res) => {
     res.status(200).json({
       success: true,
       message: "Form retrieved successfully",
-      data: form
+      data: formData
     });
     
   } catch (error) {
     console.error("Error getting public form:", error);
+    
+    // Handle specific MongoDB errors
+    if (error.name === 'CastError') {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid form ID format"
+      });
+    }
+    
     res.status(500).json({ 
       success: false,
-      message: "Server error"
+      message: "Server error",
+      error: error.message
     });
   }
 };
