@@ -13,6 +13,7 @@ import MyForms from './pages/MyForms';
 import Profile from './pages/Profile';
 import ConditionalLogic from './pages/ConditionalLogic';
 import ActivityLogs from './pages/ActivityLogs';
+import PublicForm from './pages/PublicForm';
 import ProtectedRoute from './components/ProtectedRoute';
 import './index.css';
 
@@ -71,6 +72,8 @@ function App() {
                   <FormBuilder />
                 </ProtectedRoute>
               } />
+              {/* Public form filling route - no authentication required */}
+              <Route path="/fill/:formId" element={<PublicForm />} />
             </Routes>
           </div>
         </Router>

@@ -152,7 +152,7 @@ const MyForms = () => {
     setShowMenu(null);
     if (action === 'share') {
       // Handle share action
-      const formUrl = `${window.location.origin}/form/${formId}`;
+      const formUrl = `${window.location.origin}/fill/${formId}`;
       navigator.clipboard.writeText(formUrl);
       // You could show a toast notification here
     } else {
