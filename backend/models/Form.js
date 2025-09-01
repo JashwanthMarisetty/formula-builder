@@ -177,6 +177,9 @@ formSchema.index({ createdBy: 1, updatedAt: -1 });
 // 2. Status filtering: Filter by user, status and sort by update time  
 formSchema.index({ createdBy: 1, status: 1, updatedAt: -1 });
 
+// 3. Title search: Text search for form titles (replaces slow $regex queries)
+formSchema.index({ title: 'text' });
+
 const Form = mongoose.model("Form", formSchema);
 
 module.exports = Form;
