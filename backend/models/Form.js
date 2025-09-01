@@ -170,6 +170,10 @@ const formSchema = new mongoose.Schema(
   }
 );
 
+// Create indexes for optimal query performance
+// Most critical index: Filter by user and sort by update time
+formSchema.index({ createdBy: 1, updatedAt: -1 });
+
 const Form = mongoose.model("Form", formSchema);
 
 module.exports = Form;
