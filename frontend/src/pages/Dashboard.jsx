@@ -175,7 +175,7 @@ const Dashboard = () => {
                 >
                   <div className="flex items-center justify-between mb-3">
                     <h3 className="font-medium text-gray-900 truncate text-sm sm:text-base group-hover:text-purple-600 transition-colors">
-                      {form.name}
+                      {form.name || form.title || 'Untitled Form'}
                     </h3>
                     <span
                       className={`px-2 py-1 text-xs rounded-full ${
