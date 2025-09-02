@@ -8,7 +8,14 @@ const formSchema = new mongoose.Schema(
       type: String,
       required: [true, "Form title is required"],
       trim: true,
+      minlength: [1, "Form title cannot be empty"],
       maxlength: [200, "Form title cannot exceed 200 characters"],
+      validate: {
+        validator: function(v) {
+          return v && v.trim().length > 0;
+        },
+        message: "Form title cannot be empty or just whitespace"
+      }
     },
 
     createdBy: {
