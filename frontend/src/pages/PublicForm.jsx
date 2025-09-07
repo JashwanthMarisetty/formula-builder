@@ -70,19 +70,22 @@ const PublicForm = () => {
       }
     }
 
-    // Email validation
-    if (field.type === 'email' && value) {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(value)) {
-        fieldErrors.push(`Please enter a valid email address`);
+    // Basic type validations
+    if (value && typeof value === 'string') {
+      // Email validation
+      if (field.type === 'email') {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(value)) {
+          fieldErrors.push('Please enter a valid email address');
+        }
       }
-    }
 
-    // Phone validation
-    if (field.type === 'phone' && value) {
-      const phoneRegex = /^\+?[\d\s\-\(\)]+$/;
-      if (!phoneRegex.test(value) || value.length < 10) {
-        fieldErrors.push(`Please enter a valid phone number`);
+      // Phone validation
+      if (field.type === 'phone') {
+        const phoneRegex = /^\+?[\d\s\-\(\)]+$/;
+        if (!phoneRegex.test(value) || value.length < 10) {
+          fieldErrors.push('Please enter a valid phone number');
+        }
       }
     }
 
@@ -90,12 +93,6 @@ const PublicForm = () => {
     if (field.type === 'number' && value) {
       if (isNaN(value)) {
         fieldErrors.push(`${field.label} must be a number`);
-      }
-      if (field.min !== undefined && Number(value) < field.min) {
-        fieldErrors.push(`${field.label} must be at least ${field.min}`);
-      }
-      if (field.max !== undefined && Number(value) > field.max) {
-        fieldErrors.push(`${field.label} must be at most ${field.max}`);
       }
     }
 
@@ -253,8 +250,6 @@ const PublicForm = () => {
               value={fieldValue}
               onChange={(e) => handleInputChange(field.id, e.target.value)}
               placeholder={field.placeholder}
-              min={field.min}
-              max={field.max}
               className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent ${
                 fieldError ? 'border-red-500' : 'border-gray-300'
               }`}
