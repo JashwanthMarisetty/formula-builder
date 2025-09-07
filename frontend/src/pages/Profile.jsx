@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useForm } from '../contexts/FormContext';
 import Navbar from '../components/Navbar';
 import { 
   User, 
@@ -17,6 +18,7 @@ import {
 
 const Profile = () => {
   const { user, logout } = useAuth();
+  const { forms } = useForm();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('profile');
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
@@ -31,14 +33,34 @@ const Profile = () => {
   const [passwordSuccess, setPasswordSuccess] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
 
-  // Mock user data - easily replaceable with backend data
+  // Calculate actual statistics from user's forms
+  const userStats = useMemo(() => {
+    if (!forms || forms.length === 0) {
+      return {
+        formsCreated: 0,
+        totalResponses: 0
+      };
+    }
+
+    const formsCreated = forms.length;
+    const totalResponses = forms.reduce((total, form) => {
+      return total + (form.responses ? form.responses.length : 0);
+    }, 0);
+
+    return {
+      formsCreated,
+      totalResponses
+    };
+  }, [forms]);
+
+  // User data with calculated statistics
   const userData = {
     id: user?.id || '1',
     name: user?.name || 'John Doe',
     email: user?.email || 'john.doe@example.com',
     avatar: user?.avatar || 'https://images.pexels.com/photos/91227/pexels-photo-91227.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
-    formsCreated: 12,
-    totalResponses: 245
+    formsCreated: userStats.formsCreated,
+    totalResponses: userStats.totalResponses
   };
 
   const handleLogout = () => {
