@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { X, Settings, CheckCircle, AlertCircle } from 'lucide-react';
+import React, { useState } from 'react';
+import { X, Settings } from 'lucide-react';
 
 const PropertyPanel = ({ field, onUpdateField, onClose }) => {
   const [activeTab, setActiveTab] = useState('general');
@@ -42,8 +42,7 @@ const PropertyPanel = ({ field, onUpdateField, onClose }) => {
   };
 
   const tabs = [
-    { id: 'general', name: 'General', icon: Settings },
-    { id: 'validation', name: 'Validation', icon: CheckCircle }
+    { id: 'general', name: 'General', icon: Settings }
   ];
 
   return (
@@ -207,101 +206,6 @@ const PropertyPanel = ({ field, onUpdateField, onClose }) => {
           </div>
         )}
 
-        {activeTab === 'validation' && (
-          <div className="space-y-6">
-            <div className="flex items-center space-x-2 mb-4">
-              <AlertCircle className="w-4 h-4 lg:w-5 lg:h-5 text-purple-600" />
-              <h3 className="font-medium text-gray-900 text-sm lg:text-base">Field Validation</h3>
-            </div>
-
-            {/* Min/Max Length for text fields */}
-            {['text', 'textarea', 'email'].includes(field.type) && (
-              <>
-                <div>
-                  <label className="block text-xs lg:text-sm font-medium text-gray-700 mb-1 lg:mb-2">
-                    Minimum Length
-                  </label>
-                  <input
-                    type="number"
-                    value={field.validation?.minLength || ''}
-                    onChange={(e) => handleInputChange('validation', { 
-                      ...field.validation, 
-                      minLength: e.target.value ? parseInt(e.target.value) : undefined 
-                    })}
-                    className="w-full px-2 lg:px-3 py-1 lg:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-xs lg:text-sm"
-                    min="0"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs lg:text-sm font-medium text-gray-700 mb-1 lg:mb-2">
-                    Maximum Length
-                  </label>
-                  <input
-                    type="number"
-                    value={field.validation?.maxLength || ''}
-                    onChange={(e) => handleInputChange('validation', { 
-                      ...field.validation, 
-                      maxLength: e.target.value ? parseInt(e.target.value) : undefined 
-                    })}
-                    className="w-full px-2 lg:px-3 py-1 lg:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-xs lg:text-sm"
-                    min="0"
-                  />
-                </div>
-              </>
-            )}
-
-            {/* Min/Max Value for number fields */}
-            {field.type === 'number' && (
-              <>
-                <div>
-                  <label className="block text-xs lg:text-sm font-medium text-gray-700 mb-1 lg:mb-2">
-                    Minimum Value
-                  </label>
-                  <input
-                    type="number"
-                    value={field.validation?.min || ''}
-                    onChange={(e) => handleInputChange('validation', { 
-                      ...field.validation, 
-                      min: e.target.value ? parseInt(e.target.value) : undefined 
-                    })}
-                    className="w-full px-2 lg:px-3 py-1 lg:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-xs lg:text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs lg:text-sm font-medium text-gray-700 mb-1 lg:mb-2">
-                    Maximum Value
-                  </label>
-                  <input
-                    type="number"
-                    value={field.validation?.max || ''}
-                    onChange={(e) => handleInputChange('validation', { 
-                      ...field.validation, 
-                      max: e.target.value ? parseInt(e.target.value) : undefined 
-                    })}
-                    className="w-full px-2 lg:px-3 py-1 lg:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-xs lg:text-sm"
-                  />
-                </div>
-              </>
-            )}
-
-            {/* Custom Error Message */}
-            <div>
-              <label className="block text-xs lg:text-sm font-medium text-gray-700 mb-1 lg:mb-2">
-                Custom Error Message
-              </label>
-              <input
-                type="text"
-                value={field.validation?.errorMessage || ''}
-                onChange={(e) => handleInputChange('validation', { 
-                  ...field.validation, 
-                  errorMessage: e.target.value 
-                })}
-                className="w-full px-2 lg:px-3 py-1 lg:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-xs lg:text-sm"
-                placeholder="This field is required"
-              />
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

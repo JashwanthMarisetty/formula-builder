@@ -66,9 +66,10 @@ const MyForms = () => {
         tabMatch = form.location === 'inbox';
     }
 
-    // Filter by search term
+    // Filter by search term  
+    const formTitle = form.name || form.title || 'Untitled Form';
     const searchMatch = !searchTerm || 
-      form.name.toLowerCase().includes(searchTerm.toLowerCase());
+      formTitle.toLowerCase().includes(searchTerm.toLowerCase());
 
     // Filter by status
     const statusMatch = statusFilter === 'all' || form.status === statusFilter;
@@ -119,8 +120,8 @@ const MyForms = () => {
     
     switch (sortBy) {
       case 'name':
-        aValue = a.name.toLowerCase();
-        bValue = b.name.toLowerCase();
+        aValue = (a.name || a.title || 'Untitled Form').toLowerCase();
+        bValue = (b.name || b.title || 'Untitled Form').toLowerCase();
         break;
       case 'responses':
         aValue = a.responses?.length || 0;
@@ -628,7 +629,7 @@ const MyForms = () => {
 
                         <div className="mb-4 mt-6">
                           <h3 className="font-semibold text-gray-900 text-lg mb-2 pr-8 group-hover:text-purple-600 transition-colors">
-                            {form.name}
+                            {form.name || form.title || 'Untitled Form'}
                           </h3>
                         </div>
 

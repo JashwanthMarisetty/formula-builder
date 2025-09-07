@@ -17,9 +17,17 @@ const createForm = async (req, res) => {
     // Extract data from request body
     const { title, fields = [], pages = [] } = req.body;
 
+    // Additional title validation
+    if (!title || title.trim().length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Form title is required and cannot be empty"
+      });
+    }
+
     // Initialize form data with default page if no pages provided
     let formData = {
-      title,
+      title: title.trim(),
       createdBy: req.user.id,
       status: 'draft',
       responses: []

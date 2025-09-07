@@ -73,26 +73,35 @@ const FormPreview = () => {
 
   const validateField = (field) => {
     const value = formData[field.id];
-    const validation = field.validation || {};
 
+    // Required field validation
     if (field.required && (!value || (Array.isArray(value) && value.length === 0))) {
-      return validation.errorMessage || `${field.label} is required`;
+      return `${field.label} is required`;
     }
 
-    if (value && validation.minLength && value.length < validation.minLength) {
-      return `${field.label} must be at least ${validation.minLength} characters`;
-    }
-
-    if (value && validation.maxLength && value.length > validation.maxLength) {
-      return `${field.label} must be no more than ${validation.maxLength} characters`;
-    }
-
-    if (field.type === 'number' && value) {
-      if (validation.min !== undefined && parseFloat(value) < validation.min) {
-        return `${field.label} must be at least ${validation.min}`;
+    // Basic type validations
+    if (value && typeof value === 'string') {
+      // Email validation
+      if (field.type === 'email') {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(value)) {
+          return 'Please enter a valid email address';
+        }
       }
-      if (validation.max !== undefined && parseFloat(value) > validation.max) {
-        return `${field.label} must be no more than ${validation.max}`;
+      
+      // Phone validation
+      if (field.type === 'phone') {
+        const phoneRegex = /^\+?[\d\s\-\(\)]+$/;
+        if (!phoneRegex.test(value) || value.length < 10) {
+          return 'Please enter a valid phone number';
+        }
+      }
+    }
+    
+    // Number validation
+    if (field.type === 'number' && value) {
+      if (isNaN(value)) {
+        return `${field.label} must be a number`;
       }
     }
 

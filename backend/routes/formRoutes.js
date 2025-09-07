@@ -16,7 +16,8 @@ const { auth } = require("../middleware/auth");
 const {
   createFormValidation,
   getFormsValidation,
-  getFormByIdValidation
+  getFormByIdValidation,
+  updateFormValidation
 } = require("../middleware/formValidation");
 
 // GET /api/forms - Get all forms for authenticated user
@@ -29,7 +30,7 @@ router.get("/:id", auth, getFormByIdValidation, getFormById);
 router.post("/", auth, createFormValidation, createForm);
 
 // PUT /api/forms/:id - Update a form
-router.put("/:id", auth, updateForm);
+router.put("/:id", auth, updateFormValidation, updateForm);
 
 // DELETE /api/forms/:id - Delete a form
 router.delete("/:id", auth, deleteForm);

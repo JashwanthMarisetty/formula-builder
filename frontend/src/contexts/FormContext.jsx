@@ -64,8 +64,8 @@ export const FormProvider = ({ children }) => {
           
           return {
             id: form._id,
-            name: form.title,
-            title: form.title,
+            name: form.title || 'Untitled Form',  // Handle empty titles
+            title: form.title || 'Untitled Form', // Handle empty titles
             fields: form.fields || [],
             pages: pages,
             status: form.status,

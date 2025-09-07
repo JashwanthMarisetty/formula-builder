@@ -62,9 +62,17 @@ const updateFormValidation = [
     
   body("title")
     .optional()
+    .notEmpty()
+    .withMessage("Form title cannot be empty")
     .isLength({ min: 1, max: 200 })
     .withMessage("Form title must be between 1 and 200 characters")
     .trim()
+    .custom((value) => {
+      if (value && value.trim().length === 0) {
+        throw new Error('Form title cannot be empty or just whitespace');
+      }
+      return true;
+    })
     .escape(),
     
   body("fields")

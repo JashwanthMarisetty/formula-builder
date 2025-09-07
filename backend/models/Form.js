@@ -8,7 +8,14 @@ const formSchema = new mongoose.Schema(
       type: String,
       required: [true, "Form title is required"],
       trim: true,
+      minlength: [1, "Form title cannot be empty"],
       maxlength: [200, "Form title cannot exceed 200 characters"],
+      validate: {
+        validator: function(v) {
+          return v && v.trim().length > 0;
+        },
+        message: "Form title cannot be empty or just whitespace"
+      }
     },
 
     createdBy: {
@@ -169,6 +176,16 @@ const formSchema = new mongoose.Schema(
     timestamps: true, // This automatically adds createdAt and updatedAt
   }
 );
+
+// Create indexes for optimal query performance
+// 1. Most critical index: Filter by user and sort by update time
+formSchema.index({ createdBy: 1, updatedAt: -1 });
+
+// 2. Status filtering: Filter by user, status and sort by update time  
+formSchema.index({ createdBy: 1, status: 1, updatedAt: -1 });
+
+// 3. Title search: Text search for form titles (replaces slow $regex queries)
+formSchema.index({ title: 'text' });
 
 const Form = mongoose.model("Form", formSchema);
 

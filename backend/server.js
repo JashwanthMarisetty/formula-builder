@@ -1,7 +1,14 @@
 const express = require("express");
 const bodyParser = require("body-parser");
 const cors = require("cors");
-require("dotenv").config();
+// Load environment variables
+// Try .env.local first (for development), then fall back to .env
+const fs = require('fs');
+if (fs.existsSync('.env.local')) {
+  require("dotenv").config({ path: '.env.local' });
+} else {
+  require("dotenv").config();
+}
 
 const connectDB = require("./config/database");
 const userRoutes = require("./routes/userRoutes");
