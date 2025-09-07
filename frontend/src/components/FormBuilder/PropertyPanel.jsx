@@ -42,8 +42,7 @@ const PropertyPanel = ({ field, onUpdateField, onClose }) => {
   };
 
   const tabs = [
-    { id: 'general', name: 'General', icon: Settings },
-    { id: 'validation', name: 'Validation', icon: CheckCircle }
+    { id: 'general', name: 'General', icon: Settings }
   ];
 
   return (
