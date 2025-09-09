@@ -7,10 +7,10 @@ const createForm = async (req, res) => {
     // Check for validation errors from middleware
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
         message: "Validation errors",
-        errors: errors.array() 
+        errors: errors.array(),
       });
     }
 
@@ -21,7 +21,7 @@ const createForm = async (req, res) => {
     if (!title || title.trim().length === 0) {
       return res.status(400).json({
         success: false,
-        message: "Form title is required and cannot be empty"
+        message: "Form title is required and cannot be empty",
       });
     }
 
@@ -29,24 +29,32 @@ const createForm = async (req, res) => {
     let formData = {
       title: title.trim(),
       createdBy: req.user.id,
-      status: 'draft',
-      responses: []
+      status: "draft",
+      responses: [],
     };
 
     if (pages && pages.length > 0) {
       // Multi-page form: use pages structure
       formData.pages = pages;
-      // Also maintain legacy fields array for backwards compatibility
-      formData.fields = pages.flatMap(page => page.fields || []);
+
+      const allFields = [];
+
+      for (const page of pages) {
+        if (Array.isArray(page.fields)) {
+          allFields.push(...page.fields);
+        }
+      }
+
+      formData.fields = allFields;
     } else {
       // Legacy or single-page form: convert fields to pages structure
       formData.fields = fields;
       formData.pages = [
         {
-          id: 'page-1',
-          name: 'Page 1',
-          fields: fields
-        }
+          id: "page-1",
+          name: "Page 1",
+          fields: fields,
+        },
       ];
     }
 
@@ -60,15 +68,14 @@ const createForm = async (req, res) => {
     res.status(201).json({
       success: true,
       message: "Form created successfully",
-      data: form
+      data: form,
     });
-
   } catch (error) {
     console.error("Error creating form:", error);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
       message: "Internal server error",
-      error: error.message 
+      error: error.message,
     });
   }
 };
@@ -79,21 +86,21 @@ const getAllForms = async (req, res) => {
     // Check for validation errors from middleware
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
         message: "Validation errors",
-        errors: errors.array() 
+        errors: errors.array(),
       });
     }
 
     // Extract query parameters with default values
     const {
-      page = 1,           // Default to first page
-      limit = 10,         // Default 10 forms per page
-      status = 'all',     // Default to show all statuses
-      search = '',        // Default empty search
-      sortBy = 'updatedAt', // Default sort by last updated
-      sortOrder = 'desc'  // Default newest first
+      page = 1, // Default to first page
+      limit = 10, // Default 10 forms per page
+      status = "all", // Default to show all statuses
+      search = "", // Default empty search
+      sortBy = "updatedAt", // Default sort by last updated
+      sortOrder = "desc", // Default newest first
     } = req.query;
 
     // Convert page and limit to numbers
@@ -103,11 +110,11 @@ const getAllForms = async (req, res) => {
 
     // Build the query object
     let query = {
-      createdBy: req.user.id // Only get forms created by this user
+      createdBy: req.user.id, // Only get forms created by this user
     };
 
     // Add status filter if not 'all'
-    if (status !== 'all') {
+    if (status !== "all") {
       query.status = status;
     }
 
@@ -115,13 +122,13 @@ const getAllForms = async (req, res) => {
     if (search.trim()) {
       query.title = {
         $regex: search.trim(), // MongoDB regex for partial matching
-        $options: 'i'          // Case-insensitive search
+        $options: "i", // Case-insensitive search
       };
     }
 
     // Build sort object
     const sortObject = {};
-    sortObject[sortBy] = sortOrder === 'asc' ? 1 : -1;
+    sortObject[sortBy] = sortOrder === "asc" ? 1 : -1;
 
     // Execute the query with pagination
     const [forms, totalCount] = await Promise.all([
@@ -129,11 +136,11 @@ const getAllForms = async (req, res) => {
         .sort(sortObject)
         .skip(skip)
         .limit(limitNumber)
-        .select('-__v') // Exclude version key from response
-        .populate('createdBy', 'name email') // Include creator info
+        .select("-__v") // Exclude version key from response
+        .populate("createdBy", "name email") // Include creator info
         .lean(), // Returns plain JavaScript objects (better performance)
-      
-      Form.countDocuments(query) // Get total count for pagination
+
+      Form.countDocuments(query), // Get total count for pagination
     ]);
 
     // Calculate pagination metadata
@@ -142,13 +149,16 @@ const getAllForms = async (req, res) => {
     const hasPreviousPage = pageNumber > 1;
 
     // Transform forms data (add computed fields)
-    const transformedForms = forms.map(form => ({
+    const transformedForms = forms.map((form) => ({
       ...form,
       responseCount: form.responses ? form.responses.length : 0,
-      lastResponseAt: form.responses && form.responses.length > 0 
-        ? new Date(Math.max(...form.responses.map(r => new Date(r.submittedAt))))
-        : null,
-      fieldCount: form.fields ? form.fields.length : 0
+      lastResponseAt:
+        form.responses && form.responses.length > 0
+          ? new Date(
+              Math.max(...form.responses.map((r) => new Date(r.submittedAt)))
+            )
+          : null,
+      fieldCount: form.fields ? form.fields.length : 0,
     }));
 
     // Send success response with pagination metadata
@@ -163,23 +173,22 @@ const getAllForms = async (req, res) => {
           totalCount,
           limit: limitNumber,
           hasNextPage,
-          hasPreviousPage
+          hasPreviousPage,
         },
         filters: {
           status: status,
           search: search,
           sortBy,
-          sortOrder
-        }
-      }
+          sortOrder,
+        },
+      },
     });
-
   } catch (error) {
     console.error("Error retrieving forms:", error);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
       message: "Internal server error",
-      error: error.message 
+      error: error.message,
     });
   }
 };
@@ -190,10 +199,10 @@ const getFormById = async (req, res) => {
     // Check for validation errors from middleware
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
         message: "Validation errors",
-        errors: errors.array() 
+        errors: errors.array(),
       });
     }
 
@@ -202,15 +211,15 @@ const getFormById = async (req, res) => {
 
     // Find the form by ID with additional data
     const form = await Form.findById(id)
-      .select('-__v') // Exclude MongoDB version key
-      .populate('createdBy', 'name email avatar') // Include creator details
+      .select("-__v") // Exclude MongoDB version key
+      .populate("createdBy", "name email avatar") // Include creator details
       .lean(); // Return plain JavaScript object for better performance
 
     // Check if form exists
     if (!form) {
       return res.status(404).json({
         success: false,
-        message: "Form not found"
+        message: "Form not found",
       });
     }
 
@@ -219,64 +228,77 @@ const getFormById = async (req, res) => {
     if (form.createdBy._id.toString() !== req.user.id) {
       return res.status(403).json({
         success: false,
-        message: "Access denied. You can only access your own forms."
+        message: "Access denied. You can only access your own forms.",
       });
     }
 
     // Enrich form data with computed fields
     const enrichedForm = {
       ...form,
-      
+
       // Response analytics
       responseCount: form.responses ? form.responses.length : 0,
-      lastResponseAt: form.responses && form.responses.length > 0 
-        ? new Date(Math.max(...form.responses.map(r => new Date(r.submittedAt))))
-        : null,
-      
+      lastResponseAt:
+        form.responses && form.responses.length > 0
+          ? new Date(
+              Math.max(...form.responses.map((r) => new Date(r.submittedAt)))
+            )
+          : null,
+
       // Field analytics
       fieldCount: form.fields ? form.fields.length : 0,
-      requiredFieldCount: form.fields ? form.fields.filter(field => field.required).length : 0,
-      
+      requiredFieldCount: form.fields
+        ? form.fields.filter((field) => field.required).length
+        : 0,
+
       // Form status information
-      isPublished: form.status === 'published',
-      isDraft: form.status === 'draft',
-      isClosed: form.status === 'closed',
-      
+      isPublished: form.status === "published",
+      isDraft: form.status === "draft",
+      isClosed: form.status === "closed",
+
       // Time calculations
-      daysSinceCreated: Math.floor((new Date() - new Date(form.createdAt)) / (1000 * 60 * 60 * 24)),
-      daysSinceUpdated: Math.floor((new Date() - new Date(form.updatedAt)) / (1000 * 60 * 60 * 24)),
-      
+      daysSinceCreated: Math.floor(
+        (new Date() - new Date(form.createdAt)) / (1000 * 60 * 60 * 24)
+      ),
+      daysSinceUpdated: Math.floor(
+        (new Date() - new Date(form.updatedAt)) / (1000 * 60 * 60 * 24)
+      ),
+
       // Response rate calculation (if form is published)
-      responseRate: form.status === 'published' && form.views > 0 
-        ? ((form.responses?.length || 0) / form.views * 100).toFixed(2)
-        : null,
-        
+      responseRate:
+        form.status === "published" && form.views > 0
+          ? (((form.responses?.length || 0) / form.views) * 100).toFixed(2)
+          : null,
+
       // Field type breakdown
-      fieldTypeBreakdown: form.fields ? form.fields.reduce((acc, field) => {
-        acc[field.type] = (acc[field.type] || 0) + 1;
-        return acc;
-      }, {}) : {},
-      
+      fieldTypeBreakdown: form.fields
+        ? form.fields.reduce((acc, field) => {
+            acc[field.type] = (acc[field.type] || 0) + 1;
+            return acc;
+          }, {})
+        : {},
+
       // Recent responses (last 5)
-      recentResponses: form.responses 
+      recentResponses: form.responses
         ? form.responses
             .sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt))
             .slice(0, 5)
-            .map(response => ({
+            .map((response) => ({
               id: response.id,
               submittedAt: response.submittedAt,
-              responsePreview: Object.keys(response.data).length > 0 
-                ? `${Object.keys(response.data).length} fields completed`
-                : 'Empty response'
+              responsePreview:
+                Object.keys(response.data).length > 0
+                  ? `${Object.keys(response.data).length} fields completed`
+                  : "Empty response",
             }))
-        : []
+        : [],
     };
 
     // Track form view (optional analytics)
     // Note: In production, you might want to track this separately
     // to avoid updating the form document on every view
     await Form.findByIdAndUpdate(
-      id, 
+      id,
       { $inc: { views: 1 } }, // Increment view count
       { new: false } // Don't return updated document
     );
@@ -285,25 +307,24 @@ const getFormById = async (req, res) => {
     res.status(200).json({
       success: true,
       message: "Form retrieved successfully",
-      data: enrichedForm
+      data: enrichedForm,
     });
-
   } catch (error) {
     console.error("Error retrieving form:", error);
-    
+
     // Handle specific MongoDB errors
-    if (error.name === 'CastError') {
+    if (error.name === "CastError") {
       return res.status(400).json({
         success: false,
-        message: "Invalid form ID format"
+        message: "Invalid form ID format",
       });
     }
-    
+
     // Generic error response
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
       message: "Internal server error",
-      error: error.message 
+      error: error.message,
     });
   }
 };
@@ -312,112 +333,110 @@ const updateForm = async (req, res) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
         message: "Validation errors",
-        errors: errors.array() 
+        errors: errors.array(),
       });
     }
 
     const { id } = req.params;
     const updateData = req.body;
-    
+
     // Clean up data that shouldn't be updated
     delete updateData._id;
     delete updateData.createdBy;
     delete updateData.createdAt;
-    
+
     // Handle pages structure - update both pages and fields
     if (updateData.pages) {
       // If pages are provided, also update the flat fields array for backwards compatibility
-      updateData.fields = updateData.pages.flatMap(page => page.fields || []);
+      updateData.fields = updateData.pages.flatMap((page) => page.fields || []);
     } else if (updateData.fields) {
       // If only fields provided, convert to pages structure
       updateData.pages = [
         {
-          id: 'page-1',
-          name: 'Page 1',
-          fields: updateData.fields
-        }
+          id: "page-1",
+          name: "Page 1",
+          fields: updateData.fields,
+        },
       ];
     }
-    
+
     // Check if form exists and user owns it
     const form = await Form.findById(id);
     if (!form) {
       return res.status(404).json({
         success: false,
-        message: "Form not found"
+        message: "Form not found",
       });
     }
-    
+
     if (form.createdBy.toString() !== req.user.id) {
       return res.status(403).json({
         success: false,
-        message: "Access denied"
+        message: "Access denied",
       });
     }
-    
+
     // Validate fields if they're being updated
     if (updateData.fields) {
       for (let field of updateData.fields) {
         if (!field.id || !field.type || !field.label) {
           return res.status(400).json({
             success: false,
-            message: "Fields must have id, type, and label"
+            message: "Fields must have id, type, and label",
           });
         }
-        
+
         // Check if select/radio/checkbox has options
-        if (['select', 'radio', 'checkbox'].includes(field.type)) {
+        if (["select", "radio", "checkbox"].includes(field.type)) {
           if (!field.options || field.options.length === 0) {
             return res.status(400).json({
               success: false,
-              message: `${field.type} fields need options`
+              message: `${field.type} fields need options`,
             });
           }
         }
       }
     }
-    
+
     // Can't publish empty form
-    if (updateData.status === 'published') {
+    if (updateData.status === "published") {
       const fields = updateData.fields || form.fields;
       if (!fields || fields.length === 0) {
         return res.status(400).json({
           success: false,
-          message: "Can't publish form without fields"
+          message: "Can't publish form without fields",
         });
       }
     }
-    
+
     // Update the form
-    const updatedForm = await Form.findByIdAndUpdate(
-      id,
-      updateData,
-      { new: true, runValidators: true }
-    ).populate('createdBy', 'name email');
-    
+    const updatedForm = await Form.findByIdAndUpdate(id, updateData, {
+      new: true,
+      runValidators: true,
+    }).populate("createdBy", "name email");
+
     res.status(200).json({
       success: true,
       message: "Form updated successfully",
-      data: updatedForm
+      data: updatedForm,
     });
-    
   } catch (error) {
     console.error("Error updating form:", error);
-    
-    if (error.name === 'CastError') {
+
+    if (error.name === "CastError") {
       return res.status(400).json({
         success: false,
-        message: "Invalid form ID"
+        message: "Invalid form ID",
       });
     }
-    
-    res.status(500).json({ 
+
+    res.status(500).json({
       success: false,
       message: "Server error",
-      error: error.message 
+      error: error.message,
     });
   }
 };
@@ -425,44 +444,43 @@ const updateForm = async (req, res) => {
 const deleteForm = async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     const form = await Form.findById(id);
     if (!form) {
       return res.status(404).json({
         success: false,
-        message: "Form not found"
+        message: "Form not found",
       });
     }
-    
+
     // Check ownership
     if (form.createdBy.toString() !== req.user.id) {
       return res.status(403).json({
         success: false,
-        message: "Access denied"
+        message: "Access denied",
       });
     }
-    
+
     await Form.findByIdAndDelete(id);
-    
+
     res.status(200).json({
       success: true,
-      message: "Form deleted successfully"
+      message: "Form deleted successfully",
     });
-    
   } catch (error) {
     console.error("Error deleting form:", error);
-    
-    if (error.name === 'CastError') {
+
+    if (error.name === "CastError") {
       return res.status(400).json({
         success: false,
-        message: "Invalid form ID"
+        message: "Invalid form ID",
       });
     }
-    
-    res.status(500).json({ 
+
+    res.status(500).json({
       success: false,
       message: "Server error",
-      error: error.message 
+      error: error.message,
     });
   }
 };
@@ -471,79 +489,83 @@ const submitFormResponse = async (req, res) => {
   try {
     const { id } = req.params;
     const requestBody = req.body;
-    
+
     // Extract data from request body (handle both direct data and nested data structure)
     const responseData = requestBody.data || requestBody;
-    
+
     // Find form
     const form = await Form.findById(id);
     if (!form) {
       return res.status(404).json({
         success: false,
-        message: "Form not found"
+        message: "Form not found",
       });
     }
-    
+
     // Allow submissions to both published and draft forms (for testing)
     // In production, you might want to keep the published-only restriction
-    if (form.status !== 'published' && form.status !== 'draft') {
+    if (form.status !== "published" && form.status !== "draft") {
       return res.status(400).json({
         success: false,
-        message: "Form is not available for submissions"
+        message: "Form is not available for submissions",
       });
     }
-    
+
     // Basic validation - check required fields
     const fieldsToValidate = form.fields || [];
     for (let field of fieldsToValidate) {
       if (field.required) {
         const fieldValue = responseData[field.id];
-        if (!fieldValue || (typeof fieldValue === 'string' && fieldValue.trim() === '') || 
-            (Array.isArray(fieldValue) && fieldValue.length === 0)) {
+        if (
+          !fieldValue ||
+          (typeof fieldValue === "string" && fieldValue.trim() === "") ||
+          (Array.isArray(fieldValue) && fieldValue.length === 0)
+        ) {
           return res.status(400).json({
             success: false,
-            message: `${field.label} is required`
+            message: `${field.label} is required`,
           });
         }
       }
     }
-    
+
     // Create response object
     const newResponse = {
       id: Date.now().toString(), // Simple ID for now
-      submittedAt: requestBody.submittedAt ? new Date(requestBody.submittedAt) : new Date(),
+      submittedAt: requestBody.submittedAt
+        ? new Date(requestBody.submittedAt)
+        : new Date(),
       data: responseData,
-      submitterIP: req.ip || req.connection.remoteAddress || 'unknown'
+      submitterIP: req.ip || req.connection.remoteAddress || "unknown",
     };
-    
+
     // Add response to form
     form.responses.push(newResponse);
     await form.save();
-    
+
     res.status(201).json({
       success: true,
       message: "Response submitted successfully",
       data: {
         responseId: newResponse.id,
-        submittedAt: newResponse.submittedAt
-      }
+        submittedAt: newResponse.submittedAt,
+      },
     });
-    
   } catch (error) {
     console.error("Error submitting response:", error);
-    
+
     // Handle specific MongoDB errors
-    if (error.name === 'CastError') {
+    if (error.name === "CastError") {
       return res.status(400).json({
         success: false,
-        message: "Invalid form ID format"
+        message: "Invalid form ID format",
       });
     }
-    
-    res.status(500).json({ 
+
+    res.status(500).json({
       success: false,
       message: "Server error",
-      error: error.message 
+      error: error.message,
     });
   }
 };
@@ -552,70 +574,69 @@ const submitFormResponse = async (req, res) => {
 const getPublicForm = async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     const form = await Form.findById(id)
-      .select('title fields status views pages createdAt updatedAt')
+      .select("title fields status views pages createdAt updatedAt")
       .lean();
-    
+
     if (!form) {
       return res.status(404).json({
         success: false,
-        message: "Form not found"
+        message: "Form not found",
       });
     }
-    
+
     // Allow both published and draft forms for testing
     // In production, you might want to keep the published-only restriction
-    if (form.status !== 'published' && form.status !== 'draft') {
+    if (form.status !== "published" && form.status !== "draft") {
       return res.status(400).json({
         success: false,
-        message: "Form is not available for public access"
+        message: "Form is not available for public access",
       });
     }
-    
+
     // Ensure pages exist, create from fields if needed (backwards compatibility)
     let formData = { ...form };
     if (!formData.pages || formData.pages.length === 0) {
       if (formData.fields && formData.fields.length > 0) {
         formData.pages = [
           {
-            id: 'page-1',
-            name: 'Page 1',
-            fields: formData.fields
-          }
+            id: "page-1",
+            name: "Page 1",
+            fields: formData.fields,
+          },
         ];
       } else {
         formData.pages = [];
       }
     }
-    
+
     // Add name field for frontend compatibility
     formData.name = formData.title;
-    
+
     // Increment view count
     await Form.findByIdAndUpdate(id, { $inc: { views: 1 } });
-    
+
     res.status(200).json({
       success: true,
       message: "Form retrieved successfully",
-      data: formData
+      data: formData,
     });
-    
   } catch (error) {
     console.error("Error getting public form:", error);
-    
+
     // Handle specific MongoDB errors
-    if (error.name === 'CastError') {
+    if (error.name === "CastError") {
       return res.status(400).json({
         success: false,
-        message: "Invalid form ID format"
+        message: "Invalid form ID format",
       });
     }
-    
-    res.status(500).json({ 
+
+    res.status(500).json({
       success: false,
       message: "Server error",
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -624,46 +645,53 @@ const getPublicForm = async (req, res) => {
 const getFormResponses = async (req, res) => {
   try {
     const { id } = req.params;
-    const { page = 1, limit = 50, sortBy = 'submittedAt', sortOrder = 'desc' } = req.query;
-    
+    const {
+      page = 1,
+      limit = 50,
+      sortBy = "submittedAt",
+      sortOrder = "desc",
+    } = req.query;
+
     const form = await Form.findById(id)
-      .select('title responses createdBy')
+      .select("title responses createdBy")
       .lean();
-    
+
     if (!form) {
       return res.status(404).json({
         success: false,
-        message: "Form not found"
+        message: "Form not found",
       });
     }
-    
+
     // Check ownership
     if (form.createdBy.toString() !== req.user.id) {
       return res.status(403).json({
         success: false,
-        message: "Access denied"
+        message: "Access denied",
       });
     }
-    
+
     // Pagination
     const pageNumber = parseInt(page, 10);
     const limitNumber = parseInt(limit, 10);
     const skip = (pageNumber - 1) * limitNumber;
-    
+
     // Sort responses
-    const sortDirection = sortOrder === 'asc' ? 1 : -1;
+    const sortDirection = sortOrder === "asc" ? 1 : -1;
     const sortedResponses = form.responses.sort((a, b) => {
-      if (sortBy === 'submittedAt') {
-        return sortDirection * (new Date(a.submittedAt) - new Date(b.submittedAt));
+      if (sortBy === "submittedAt") {
+        return (
+          sortDirection * (new Date(a.submittedAt) - new Date(b.submittedAt))
+        );
       }
       return 0;
     });
-    
+
     // Apply pagination
     const paginatedResponses = sortedResponses.slice(skip, skip + limitNumber);
     const totalCount = form.responses.length;
     const totalPages = Math.ceil(totalCount / limitNumber);
-    
+
     res.status(200).json({
       success: true,
       message: "Responses retrieved successfully",
@@ -676,17 +704,16 @@ const getFormResponses = async (req, res) => {
           totalCount,
           limit: limitNumber,
           hasNextPage: pageNumber < totalPages,
-          hasPreviousPage: pageNumber > 1
-        }
-      }
+          hasPreviousPage: pageNumber > 1,
+        },
+      },
     });
-    
   } catch (error) {
     console.error("Error retrieving responses:", error);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
       message: "Server error",
-      error: error.message 
+      error: error.message,
     });
   }
 };
@@ -695,35 +722,35 @@ const getFormResponses = async (req, res) => {
 const getResponseById = async (req, res) => {
   try {
     const { formId, responseId } = req.params;
-    
+
     const form = await Form.findById(formId)
-      .select('title responses createdBy fields pages')
+      .select("title responses createdBy fields pages")
       .lean();
-    
+
     if (!form) {
       return res.status(404).json({
         success: false,
-        message: "Form not found"
+        message: "Form not found",
       });
     }
-    
+
     // Check ownership
     if (form.createdBy.toString() !== req.user.id) {
       return res.status(403).json({
         success: false,
-        message: "Access denied"
+        message: "Access denied",
       });
     }
-    
-    const response = form.responses.find(r => r.id === responseId);
-    
+
+    const response = form.responses.find((r) => r.id === responseId);
+
     if (!response) {
       return res.status(404).json({
         success: false,
-        message: "Response not found"
+        message: "Response not found",
       });
     }
-    
+
     res.status(200).json({
       success: true,
       message: "Response retrieved successfully",
@@ -731,16 +758,15 @@ const getResponseById = async (req, res) => {
         formTitle: form.title,
         formFields: form.fields || [],
         formPages: form.pages || [],
-        response
-      }
+        response,
+      },
     });
-    
   } catch (error) {
     console.error("Error retrieving response:", error);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
       message: "Server error",
-      error: error.message 
+      error: error.message,
     });
   }
 };
@@ -749,72 +775,74 @@ const getResponseById = async (req, res) => {
 const deleteResponse = async (req, res) => {
   try {
     const { formId, responseId } = req.params;
-    
+
     // Find the form
     const form = await Form.findById(formId);
-    
+
     if (!form) {
       return res.status(404).json({
         success: false,
-        message: "Form not found"
+        message: "Form not found",
       });
     }
-    
+
     // Check ownership - only form owner can delete responses
     if (form.createdBy.toString() !== req.user.id) {
       return res.status(403).json({
         success: false,
-        message: "Access denied. You can only delete responses from your own forms."
+        message:
+          "Access denied. You can only delete responses from your own forms.",
       });
     }
-    
+
     // Find the response to delete
-    const responseIndex = form.responses.findIndex(r => r.id === responseId);
-    
+    const responseIndex = form.responses.findIndex((r) => r.id === responseId);
+
     if (responseIndex === -1) {
       return res.status(404).json({
         success: false,
-        message: "Response not found"
+        message: "Response not found",
       });
     }
-    
+
     // Store response data for logging (optional)
     const deletedResponse = form.responses[responseIndex];
-    
+
     // Remove the response from the array
     form.responses.splice(responseIndex, 1);
-    
+
     // Save the form
     await form.save();
-    
+
     // Log the deletion for audit purposes
-    console.log(`Response ${responseId} deleted from form ${formId} by user ${req.user.id}`);
-    
+    console.log(
+      `Response ${responseId} deleted from form ${formId} by user ${req.user.id}`
+    );
+
     res.status(200).json({
       success: true,
       message: "Response deleted successfully",
       data: {
         deletedResponseId: responseId,
         remainingResponses: form.responses.length,
-        deletedAt: new Date().toISOString()
-      }
+        deletedAt: new Date().toISOString(),
+      },
     });
-    
   } catch (error) {
     console.error("Error deleting response:", error);
-    
+
     // Handle specific MongoDB errors
-    if (error.name === 'CastError') {
+    if (error.name === "CastError") {
       return res.status(400).json({
         success: false,
-        message: "Invalid form or response ID format"
+        message: "Invalid form or response ID format",
       });
     }
-    
-    res.status(500).json({ 
+
+    res.status(500).json({
       success: false,
       message: "Server error while deleting response",
-      error: error.message 
+      error: error.message,
     });
   }
 };
@@ -829,5 +857,5 @@ module.exports = {
   getPublicForm,
   getFormResponses,
   getResponseById,
-  deleteResponse
+  deleteResponse,
 };
