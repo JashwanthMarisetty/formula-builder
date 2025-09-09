@@ -41,7 +41,9 @@ const createForm = async (req, res) => {
 
       for (const page of pages) {
         if (Array.isArray(page.fields)) {
-          allFields.push(...page.fields);
+         for (const field of page.fields) {
+           allFields.push(field);
+         }
         }
       }
 
