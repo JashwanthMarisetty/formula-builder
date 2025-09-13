@@ -37,6 +37,10 @@ const userSchema = new mongoose.Schema({
     default:
       "https://images.pexels.com/photos/91227/pexels-photo-91227.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1",
   },
+  profilePicture: {
+    type: String,
+    default: null, // Will store the path to uploaded profile picture
+  },
   role: {
     type: String,
     enum: ["user", "admin"],
