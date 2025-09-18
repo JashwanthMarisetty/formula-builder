@@ -75,15 +75,6 @@ userSchema.pre("save", async function (next) {
   }
 });
 
-// Method to compare passwords
-userSchema.methods.comparePassword = async function (candidatePassword) {
-  try {
-    return await bcrypt.compare(candidatePassword, this.password);
-  } catch (error) {
-    throw new Error(error);
-  }
-};
-
 // Method to generate a verification token
 userSchema.methods.generateVerificationToken = function () {
   const token = crypto.randomBytes(32).toString("hex");
