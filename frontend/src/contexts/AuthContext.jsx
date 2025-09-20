@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { authAPI } from "../services/api";
+import { authAPI, authUtils } from "../services/api";
 import { auth, provider, signInWithPopup } from "../services/firebaseConfig";
 
 const AuthContext = createContext();
@@ -40,10 +40,8 @@ export const AuthProvider = ({ children }) => {
             localStorage.setItem("formula_user", JSON.stringify(response.user));
           }
         } catch (error) {
-          // Token is invalid, clear stored data
-          localStorage.removeItem("formula_token");
-          localStorage.removeItem("formula_refresh_token");
-          localStorage.removeItem("formula_user");
+          // Token is invalid, clear stored data using manual auth utilities
+          authUtils.clearAuth();
         }
       }
       setIsLoading(false);
