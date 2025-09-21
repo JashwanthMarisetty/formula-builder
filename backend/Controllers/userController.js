@@ -106,7 +106,7 @@ const refreshToken = async (req, res) => {
       return res.status(401).json({ message: "Invalid refresh token" });
     }
 
-    const newToken = generateToken(user._id);
+    const newToken = generateToken(user._id); 
     const newRefreshToken = generateRefreshToken(user._id);
 
     res.json({
@@ -215,6 +215,14 @@ const googleSignIn = async (req, res) => {
   try {
     const { firebaseUid, email, name, photoURL } = req.body;
 
+    // Validate required fields
+    if (!firebaseUid || !email || !name) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Missing required fields: firebaseUid, email, and name are required" 
+      });
+    }
+
     // Check if user already exists by email or firebaseUid
     let user = await User.findOne({ $or: [{ email }, { firebaseUid }] });
 
@@ -224,7 +232,7 @@ const googleSignIn = async (req, res) => {
         firebaseUid,
         email,
         name,
-        avatar: photoURL,
+        avatar: photoURL || 'https://images.pexels.com/photos/91227/pexels-photo-91227.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
         provider: 'google',
         password: 'google-oauth', // Password not needed for Google Sign-In
         emailVerified: true // Google users have verified emails
@@ -234,6 +242,7 @@ const googleSignIn = async (req, res) => {
 
     // Generate tokens for the user
     const token = generateToken(user._id);
+    console.log("Generated JWT token:", token);
     const refreshToken = generateRefreshToken(user._id);
 
     res.json({
@@ -250,7 +259,11 @@ const googleSignIn = async (req, res) => {
     });
   } catch (error) {
     console.error("Google Sign-In error:", error);
-    res.status(500).json({ message: "Google Sign-In failed", error: error.message });
+    res.status(500).json({ 
+      success: false, 
+      message: "Google Sign-In failed", 
+      error: error.message 
+    });
   }
 };
 

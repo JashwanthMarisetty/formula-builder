@@ -2,66 +2,75 @@ const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
 
-const userSchema = new mongoose.Schema({
-  name: {
-    type: String,
-    required: true,
-    trim: true,
-  },
-  email: {
-    type: String,
-    required: true,
-    unique: true,
-    trim: true,
-    lowercase: true,
-    match: [/^[\w-]+(\.[\w-]+)*@([\w-]+\.)+[a-zA-Z]{2,7}$/, 'Please enter a valid email']
-  },
-  password: {
-    type: String,
-    required: function() {
-      return this.provider !== 'google';
+const userSchema = new mongoose.Schema(
+  {
+    name: {
+      type: String,
+      required: true,
+      trim: true,
     },
-    minlength: 6,
-  },
-  firebaseUid: {
-    type: String,
-    sparse: true, // Allows multiple null values but ensures uniqueness for non-null values
-  },
-  provider: {
-    type: String,
-    enum: ['local', 'google'],
-    default: 'local',
-  },
-  avatar: {
-    type: String,
-    default:
-      "https://images.pexels.com/photos/91227/pexels-photo-91227.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1",
-  },
-  role: {
-    type: String,
-    enum: ["user", "admin"],
-    default: "user",
-  },
-  emailVerified: {
-    type: Boolean,
-    default: false,
-  },
-  verificationToken: String,
-  verificationExpires: Date,
-  passwordResetToken: String,
-  passwordResetExpires: Date,
+    email: {
+      type: String,
+      required: true,
+      unique: true,
+      trim: true,
+      lowercase: true,
+      match: [
+        /^[\w-]+(\.[\w-]+)*@([\w-]+\.)+[a-zA-Z]{2,7}$/,
+        "Please enter a valid email",
+      ],
+    },
+    password: {
+      type: String,
+      required: function () {
+        if (this.provider === "google") {
+          return false; // no password required
+        }
+        return true; // required for others
+      },
+      minlength: 6,
+    },
+    firebaseUid: {
+      type: String,
+      sparse: true, // Allows multiple null values but ensures uniqueness for non-null values
+    },
+    provider: {
+      type: String,
+      enum: ["local", "google"],
+      default: "local",
+    },
+    avatar: {
+      type: String,
+      default:
+        "https://images.pexels.com/photos/91227/pexels-photo-91227.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1",
+    },
+    role: {
+      type: String,
+      enum: ["user", "admin"],
+      default: "user",
+    },
+    emailVerified: {
+      type: Boolean,
+      default: false,
+    },
+    verificationToken: String,
+    verificationExpires: Date,
+    passwordResetToken: String,
+    passwordResetExpires: Date,
 
-  formsCreated: {
-    type: Number,
-    default: 0
+    formsCreated: {
+      type: Number,
+      default: 0,
+    },
+    totalResponses: {
+      type: Number,
+      default: 0,
+    },
   },
-  totalResponses: {
-    type: Number,
-    default: 0
-  },
-}, {
+  {
     timestamps: true,
-});
+  }
+);
 
 // Hash password before saving user
 userSchema.pre("save", async function (next) {
@@ -74,15 +83,6 @@ userSchema.pre("save", async function (next) {
     next(error);
   }
 });
-
-// Method to compare passwords
-userSchema.methods.comparePassword = async function (candidatePassword) {
-  try {
-    return await bcrypt.compare(candidatePassword, this.password);
-  } catch (error) {
-    throw new Error(error);
-  }
-};
 
 // Method to generate a verification token
 userSchema.methods.generateVerificationToken = function () {
