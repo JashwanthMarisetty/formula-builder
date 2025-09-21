@@ -40,7 +40,7 @@ export const AuthProvider = ({ children }) => {
             localStorage.setItem("formula_user", JSON.stringify(response.user));
           }
         } catch (error) {
-          // Token is invalid, clear stored data using manual auth utilities
+          // Token is invalid, clear stored data using authUtils
           authUtils.clearAuth();
         }
       }
@@ -107,7 +107,7 @@ export const AuthProvider = ({ children }) => {
       const result = await signInWithPopup(auth, provider);
       const firebaseUser = result.user;
 
-      console.log("result", result);
+      console.log("Firebase user:", firebaseUser);
 
       // Step 2: Send Google user data to your backend
       const googleUserData = {
@@ -124,7 +124,12 @@ export const AuthProvider = ({ children }) => {
       if (response.success) {
         const { user, token, refreshToken } = response;
 
-        // Step 4: Store tokens and user data (same as regular login)
+        // Validate that we received proper tokens
+        if (!token || !refreshToken) {
+          throw new Error("Backend did not return required tokens");
+        }
+
+        // Step 4: Store backend tokens
         localStorage.setItem("formula_token", token);
         localStorage.setItem("formula_refresh_token", refreshToken);
         localStorage.setItem("formula_user", JSON.stringify(user));
@@ -138,6 +143,9 @@ export const AuthProvider = ({ children }) => {
       }
     } catch (error) {
       console.error("Google Sign-In error occurred:", error);
+
+      // Clear any partial data
+      authUtils.clearAuth();
 
       // Provide more specific error messages
       let errorMessage = "Google Sign-In failed";
