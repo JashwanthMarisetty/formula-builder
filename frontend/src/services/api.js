@@ -8,18 +8,9 @@ const api = axios.create({
   },
 });
 
+
 // Manual authentication utilities
 const authUtils = {
-  // Manually add authorization header
-  addAuthHeader: (config = {}) => {
-    const token = localStorage.getItem('formula_token');
-    if (token) {
-      config.headers = config.headers || {};
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-
   // Manually handle token refresh
   refreshToken: async () => {
     const refreshToken = localStorage.getItem('formula_refresh_token');
@@ -40,29 +31,10 @@ const authUtils = {
       return { token, refreshToken: newRefreshToken };
     } catch (error) {
       // Refresh failed, clear tokens and redirect
-      localStorage.removeItem('formula_token');
-      localStorage.removeItem('formula_refresh_token');
-      localStorage.removeItem('formula_user');
+      authUtils.clearAuth();
       window.location.href = '/login';
       throw error;
     }
-  },
-
-  // Manual error handling for API responses
-  handleApiError: async (error, originalConfig, retryCallback) => {
-    if (error.response?.status === 401 && !originalConfig._retry) {
-      originalConfig._retry = true;
-      
-      try {
-        await authUtils.refreshToken();
-        // Retry the original request with new token
-        const newConfig = authUtils.addAuthHeader(originalConfig);
-        return retryCallback(newConfig);
-      } catch (refreshError) {
-        throw refreshError;
-      }
-    }
-    throw error;
   },
 
   // Clear authentication data
@@ -73,14 +45,9 @@ const authUtils = {
   }
 };
 
-// Manual API request wrapper
-const makeAuthenticatedRequest = async (requestFn, config = {}) => {
-  try {
-    const authConfig = authUtils.addAuthHeader(config);
-    return await requestFn(authConfig);
-  } catch (error) {
-    return authUtils.handleApiError(error, config, requestFn);
-  }
+// Helper function to get token from localStorage
+const getToken = () => {
+  return localStorage.getItem('formula_token');
 };
 
 // Auth API calls (no interceptors - manual handling)
@@ -98,7 +65,7 @@ export const authAPI = {
   },
 
   logout: async () => {
-    // Use manual auth utility to clear data
+    // Use authUtils to clear authentication data
     authUtils.clearAuth();
   },
 
@@ -109,11 +76,28 @@ export const authAPI = {
   },
 
   getMe: async () => {
-    // Manually handle authentication with retry logic
-    return makeAuthenticatedRequest(async (config) => {
-      const response = await api.get('/users/me', config);
+    const token = getToken();
+    try {
+      const response = await api.get('/users/me', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       return response.data;
-    });
+    } catch (error) {
+      if (error.response?.status === 401) {
+        try {
+          await authUtils.refreshToken();
+          const newToken = getToken();
+          const response = await api.get('/users/me', {
+            headers: { Authorization: `Bearer ${newToken}` }
+          });
+          return response.data;
+        } catch (refreshError) {
+          authUtils.clearAuth();
+          throw refreshError;
+        }
+      }
+      throw error;
+    }
   },
 
   forgotPassword: async (email) => {
@@ -135,30 +119,86 @@ export const authAPI = {
   },
 };
 
-// Form API calls (no interceptors - manual handling)
+// Form API calls with explicit authorization headers
 export const formAPI = {
   // Create a new form (requires authentication)
   createForm: async (formData) => {
-    return makeAuthenticatedRequest(async (config) => {
-      const response = await api.post('/forms', formData, config);
+    const token = getToken();
+    try {
+      const response = await api.post('/forms', formData, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       return response.data;
-    });
+    } catch (error) {
+      if (error.response?.status === 401) {
+        try {
+          await authUtils.refreshToken();
+          const newToken = getToken();
+          const response = await api.post('/forms', formData, {
+            headers: { Authorization: `Bearer ${newToken}` }
+          });
+          return response.data;
+        } catch (refreshError) {
+          authUtils.clearAuth();
+          throw refreshError;
+        }
+      }
+      throw error;
+    }
   },
 
   // Get all forms for the authenticated user (requires authentication)
   getAllForms: async (params = {}) => {
-    return makeAuthenticatedRequest(async (config) => {
-      const response = await api.get('/forms', { ...config, params });
+    const token = getToken();
+    try {
+      const response = await api.get('/forms', {
+        headers: { Authorization: `Bearer ${token}` },
+        params
+      });
       return response.data;
-    });
+    } catch (error) {
+      if (error.response?.status === 401) {
+        try {
+          await authUtils.refreshToken();
+          const newToken = getToken();
+          const response = await api.get('/forms', {
+            headers: { Authorization: `Bearer ${newToken}` },
+            params
+          });
+          return response.data;
+        } catch (refreshError) {
+          authUtils.clearAuth();
+          throw refreshError;
+        }
+      }
+      throw error;
+    }
   },
 
   // Get a specific form by ID (requires authentication)
   getFormById: async (formId) => {
-    return makeAuthenticatedRequest(async (config) => {
-      const response = await api.get(`/forms/${formId}`, config);
+    const token = getToken();
+    try {
+      const response = await api.get(`/forms/${formId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       return response.data;
-    });
+    } catch (error) {
+      if (error.response?.status === 401) {
+        try {
+          await authUtils.refreshToken();
+          const newToken = getToken();
+          const response = await api.get(`/forms/${formId}`, {
+            headers: { Authorization: `Bearer ${newToken}` }
+          });
+          return response.data;
+        } catch (refreshError) {
+          authUtils.clearAuth();
+          throw refreshError;
+        }
+      }
+      throw error;
+    }
   },
 
   // Get a public form (no auth required)
@@ -169,18 +209,54 @@ export const formAPI = {
 
   // Update a form (requires authentication)
   updateForm: async (formId, formData) => {
-    return makeAuthenticatedRequest(async (config) => {
-      const response = await api.put(`/forms/${formId}`, formData, config);
+    const token = getToken();
+    try {
+      const response = await api.put(`/forms/${formId}`, formData, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       return response.data;
-    });
+    } catch (error) {
+      if (error.response?.status === 401) {
+        try {
+          await authUtils.refreshToken();
+          const newToken = getToken();
+          const response = await api.put(`/forms/${formId}`, formData, {
+            headers: { Authorization: `Bearer ${newToken}` }
+          });
+          return response.data;
+        } catch (refreshError) {
+          authUtils.clearAuth();
+          throw refreshError;
+        }
+      }
+      throw error;
+    }
   },
 
   // Delete a form (requires authentication)
   deleteForm: async (formId) => {
-    return makeAuthenticatedRequest(async (config) => {
-      const response = await api.delete(`/forms/${formId}`, config);
+    const token = getToken();
+    try {
+      const response = await api.delete(`/forms/${formId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       return response.data;
-    });
+    } catch (error) {
+      if (error.response?.status === 401) {
+        try {
+          await authUtils.refreshToken();
+          const newToken = getToken();
+          const response = await api.delete(`/forms/${formId}`, {
+            headers: { Authorization: `Bearer ${newToken}` }
+          });
+          return response.data;
+        } catch (refreshError) {
+          authUtils.clearAuth();
+          throw refreshError;
+        }
+      }
+      throw error;
+    }
   },
 
   // Submit a response to a form (no auth required - public endpoint)
@@ -191,26 +267,82 @@ export const formAPI = {
 
   // Get all responses for a form (requires authentication)
   getFormResponses: async (formId, params = {}) => {
-    return makeAuthenticatedRequest(async (config) => {
-      const response = await api.get(`/forms/${formId}/responses`, { ...config, params });
+    const token = getToken();
+    try {
+      const response = await api.get(`/forms/${formId}/responses`, {
+        headers: { Authorization: `Bearer ${token}` },
+        params
+      });
       return response.data;
-    });
+    } catch (error) {
+      if (error.response?.status === 401) {
+        try {
+          await authUtils.refreshToken();
+          const newToken = getToken();
+          const response = await api.get(`/forms/${formId}/responses`, {
+            headers: { Authorization: `Bearer ${newToken}` },
+            params
+          });
+          return response.data;
+        } catch (refreshError) {
+          authUtils.clearAuth();
+          throw refreshError;
+        }
+      }
+      throw error;
+    }
   },
 
   // Get a single response by ID (requires authentication)
   getResponseById: async (formId, responseId) => {
-    return makeAuthenticatedRequest(async (config) => {
-      const response = await api.get(`/forms/${formId}/responses/${responseId}`, config);
+    const token = getToken();
+    try {
+      const response = await api.get(`/forms/${formId}/responses/${responseId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       return response.data;
-    });
+    } catch (error) {
+      if (error.response?.status === 401) {
+        try {
+          await authUtils.refreshToken();
+          const newToken = getToken();
+          const response = await api.get(`/forms/${formId}/responses/${responseId}`, {
+            headers: { Authorization: `Bearer ${newToken}` }
+          });
+          return response.data;
+        } catch (refreshError) {
+          authUtils.clearAuth();
+          throw refreshError;
+        }
+      }
+      throw error;
+    }
   },
 
   // Delete a specific response (requires authentication)
   deleteResponse: async (formId, responseId) => {
-    return makeAuthenticatedRequest(async (config) => {
-      const response = await api.delete(`/forms/${formId}/responses/${responseId}`, config);
+    const token = getToken();
+    try {
+      const response = await api.delete(`/forms/${formId}/responses/${responseId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       return response.data;
-    });
+    } catch (error) {
+      if (error.response?.status === 401) {
+        try {
+          await authUtils.refreshToken();
+          const newToken = getToken();
+          const response = await api.delete(`/forms/${formId}/responses/${responseId}`, {
+            headers: { Authorization: `Bearer ${newToken}` }
+          });
+          return response.data;
+        } catch (refreshError) {
+          authUtils.clearAuth();
+          throw refreshError;
+        }
+      }
+      throw error;
+    }
   },
 };
 
