@@ -171,6 +171,59 @@ const formSchema = new mongoose.Schema(
       default: 0,
       min: 0,
     },
+
+    // Conditional logic rules
+    conditionalRules: [
+      {
+        id: {
+          type: String,
+          required: true,
+        },
+        triggerFieldId: {
+          type: String,
+          required: true,
+        },
+        targetFieldId: {
+          type: String,
+        },
+        targetPageId: {
+          type: String,
+        },
+        condition: {
+          type: String,
+          required: true,
+          enum: [
+            'is equal to',
+            'is not equal to', 
+            'contains',
+            'does not contain',
+            'starts with',
+            'ends with',
+            'is greater than',
+            'is less than',
+            'is greater than or equal to',
+            'is less than or equal to',
+            'is empty',
+            'is not empty',
+            'is selected',
+            'is not selected',
+            'has any value',
+            'has specific value'
+          ]
+        },
+        value: {
+          type: String,
+          default: ''
+        },
+        action: {
+          type: {
+            type: String,
+            enum: ['show', 'hide', 'require', 'optional'],
+            required: true
+          }
+        }
+      }
+    ],
   },
   {
     timestamps: true, // This automatically adds createdAt and updatedAt
