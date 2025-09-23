@@ -28,8 +28,13 @@ export const FormProvider = ({ children }) => {
       const response = await formAPI.getAllForms({ limit: 100 });
       
       if (response.success) {
-        // Use backend data directly - no transformation needed
-        const formsArray = response.data?.forms || [];
+        // Transform backend data to ensure consistent ID handling
+        const formsArray = (response.data?.forms || []).map(form => ({
+          ...form,
+          id: form._id, // Ensure each form has both _id and id properties
+          name: form.title || form.name, // Ensure both name and title are available
+          title: form.title || form.name
+        }));
         setForms(formsArray);
       }
     } catch (error) {
@@ -60,7 +65,9 @@ export const FormProvider = ({ children }) => {
         await loadForms(); // Refresh form list
         return {
           id: response.data._id,
-          ...response.data
+          ...response.data,
+          name: response.data.title || response.data.name, // Ensure both name and title are available
+          title: response.data.title || response.data.name
         };
       }
     } catch (error) {
@@ -76,12 +83,14 @@ export const FormProvider = ({ children }) => {
       if (response.success) {
         const updatedForm = {
           id: response.data._id,
-          ...response.data
+          ...response.data,
+          name: response.data.title || response.data.name, // Ensure both name and title are available
+          title: response.data.title || response.data.name
         };
         setCurrentForm(updatedForm);
         // Also update in forms list
         setForms(prev => prev.map(form => 
-          form._id === formId ? updatedForm : form
+          (form._id === formId || form.id === formId) ? updatedForm : form
         ));
       }
     } catch (error) {

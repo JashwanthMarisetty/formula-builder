@@ -171,7 +171,7 @@ const Dashboard = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
               {forms.slice(0, 6).map((form) => (
                 <div
-                  key={form._id}
+                  key={form.id || form._id}
                   className="border border-gray-200 rounded-lg p-4 hover:shadow-md hover:border-purple-300 transition-all group"
                 >
                   <div className="flex items-center justify-between mb-3">
@@ -194,13 +194,13 @@ const Dashboard = () => {
                   </div>
                   <div className="flex space-x-2">
                     <Link
-                      to={`/form-builder/${form._id}`}
+                      to={`/form-builder/${form.id || form._id}`}
                       className="flex-1 bg-gray-100 text-gray-700 px-2 sm:px-3 py-2 rounded text-xs sm:text-sm text-center hover:bg-gray-200 transition-colors"
                     >
                       Edit
                     </Link>
                     <Link
-                      to={`/form-preview/${form._id}`}
+                      to={`/form-preview/${form.id || form._id}`}
                       className="flex-1 bg-purple-600 text-white px-2 sm:px-3 py-2 rounded text-xs sm:text-sm text-center hover:bg-purple-700 transition-colors"
                     >
                       Preview
