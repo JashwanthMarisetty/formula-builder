@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useForm } from "../contexts/FormContext";
 import { useAuth } from "../contexts/AuthContext";
+import { formAPI } from "../services/api";
 import Navbar from "../components/Navbar";
 import { Plus, FileText, Users, Eye } from "lucide-react";
 
@@ -9,6 +10,23 @@ const Dashboard = () => {
   const { forms, createForm, isLoadingForms } = useForm();
   const { user, isAuthenticated, isLoading } = useAuth();
   const navigate = useNavigate();
+  const [analytics, setAnalytics] = useState({
+    totalForms: 0,
+    totalResponses: 0,
+    totalViews: 0
+  });
+
+  // Calculate analytics from backend data directly
+  useEffect(() => {
+    if (forms.length > 0) {
+      const stats = {
+        totalForms: forms.length,
+        totalResponses: forms.reduce((sum, form) => sum + (form.responseCount || 0), 0),
+        totalViews: forms.reduce((sum, form) => sum + (form.views || 0), 0)
+      };
+      setAnalytics(stats);
+    }
+  }, [forms]);
 
   const handleCreateForm = async () => {
     try {
@@ -23,25 +41,8 @@ const Dashboard = () => {
     }
   };
 
-  // Calculate simplified statistics from form data
-  const stats = useMemo(() => {
-    const inboxForms = forms.filter((form) => form.location === "inbox");
-    const totalResponses = forms.reduce(
-      (sum, form) => sum + (form.responses?.length || 0),
-      0
-    );
-    const totalViews = forms.reduce((sum, form) => sum + (form.views || 0), 0);
-
-    return {
-      totalForms: inboxForms.length,
-      totalResponses,
-      totalViews,
-      inboxForms,
-    };
-  }, [forms]);
-
   // Show loading state while authentication or forms are loading
-  if (isLoading || (isLoadingForms && forms.length === 0)) {
+  if (isLoading || isLoadingForms) {
     return (
       <div className="min-h-screen bg-gray-50">
         <Navbar />
@@ -90,7 +91,7 @@ const Dashboard = () => {
           </p>
         </div>
 
-        {/* Stats Cards - Only 3 cards */}
+        {/* Stats Cards - Using backend analytics */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
           <div className="bg-white rounded-lg shadow-sm p-4 sm:p-6 hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between">
@@ -99,7 +100,7 @@ const Dashboard = () => {
                   Total Forms
                 </p>
                 <p className="text-xl sm:text-2xl font-bold text-gray-900">
-                  {stats.totalForms}
+                  {analytics.totalForms}
                 </p>
               </div>
               <div className="w-8 h-8 sm:w-12 sm:h-12 bg-blue-100 rounded-full flex items-center justify-center">
@@ -115,7 +116,7 @@ const Dashboard = () => {
                   Total Responses
                 </p>
                 <p className="text-xl sm:text-2xl font-bold text-gray-900">
-                  {stats.totalResponses}
+                  {analytics.totalResponses}
                 </p>
               </div>
               <div className="w-8 h-8 sm:w-12 sm:h-12 bg-green-100 rounded-full flex items-center justify-center">
@@ -131,7 +132,7 @@ const Dashboard = () => {
                   Total Views
                 </p>
                 <p className="text-xl sm:text-2xl font-bold text-gray-900">
-                  {stats.totalViews}
+                  {analytics.totalViews}
                 </p>
               </div>
               <div className="w-8 h-8 sm:w-12 sm:h-12 bg-purple-100 rounded-full flex items-center justify-center">
@@ -155,7 +156,7 @@ const Dashboard = () => {
             </Link>
           </div>
 
-          {stats.inboxForms.length === 0 ? (
+          {forms.length === 0 ? (
             <div className="text-center py-8">
               <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
               <p className="text-gray-500 mb-4">No forms created yet</p>
@@ -168,14 +169,14 @@ const Dashboard = () => {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-              {stats.inboxForms.slice(0, 6).map((form) => (
+              {forms.slice(0, 6).map((form) => (
                 <div
-                  key={form.id}
+                  key={form.id || form._id}
                   className="border border-gray-200 rounded-lg p-4 hover:shadow-md hover:border-purple-300 transition-all group"
                 >
                   <div className="flex items-center justify-between mb-3">
                     <h3 className="font-medium text-gray-900 truncate text-sm sm:text-base group-hover:text-purple-600 transition-colors">
-                      {form.name || form.title || 'Untitled Form'}
+                      {form.title || 'Untitled Form'}
                     </h3>
                     <span
                       className={`px-2 py-1 text-xs rounded-full ${
@@ -188,18 +189,18 @@ const Dashboard = () => {
                     </span>
                   </div>
                   <div className="flex items-center justify-between text-xs sm:text-sm text-gray-500 mb-3">
-                    <span>{form.responses?.length || 0} responses</span>
+                    <span>{form.responseCount || 0} responses</span>
                     <span>{new Date(form.updatedAt).toLocaleDateString()}</span>
                   </div>
                   <div className="flex space-x-2">
                     <Link
-                      to={`/form-builder/${form.id}`}
+                      to={`/form-builder/${form.id || form._id}`}
                       className="flex-1 bg-gray-100 text-gray-700 px-2 sm:px-3 py-2 rounded text-xs sm:text-sm text-center hover:bg-gray-200 transition-colors"
                     >
                       Edit
                     </Link>
                     <Link
-                      to={`/form-preview/${form.id}`}
+                      to={`/form-preview/${form.id || form._id}`}
                       className="flex-1 bg-purple-600 text-white px-2 sm:px-3 py-2 rounded text-xs sm:text-sm text-center hover:bg-purple-700 transition-colors"
                     >
                       Preview

@@ -41,19 +41,20 @@ const FieldPalette = ({ onAddField }) => {
   );
 
   const handleAddField = (fieldType) => {
-    const baseField = {
+    // Simplified field data - no ID generation, backend handles everything
+    const fieldData = {
       type: fieldType.type,
       label: fieldType.name,
       placeholder: `Enter ${fieldType.name.toLowerCase()}`,
       required: false,
-      validation: {},
       options: fieldType.type === 'select' || fieldType.type === 'radio' || fieldType.type === 'checkbox' 
         ? ['Option 1', 'Option 2', 'Option 3'] 
         : undefined
     };
 
+    // Add subfields for address type
     if (fieldType.type === 'address') {
-      baseField.subfields = [
+      fieldData.subfields = [
         { name: 'street', label: 'Street Address', required: true },
         { name: 'city', label: 'City', required: true },
         { name: 'state', label: 'State / Province', required: true },
@@ -61,7 +62,8 @@ const FieldPalette = ({ onAddField }) => {
       ];
     }
 
-    onAddField(baseField);
+    // Call parent handler - backend will generate ID
+    onAddField(fieldData);
   };
 
   return (

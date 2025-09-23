@@ -241,7 +241,7 @@ const FormBuilder = () => {
                 type="text"
                 value={currentForm.name}
                   onChange={(e) => {
-                    updateForm(currentForm.id, { name: e.target.value });
+                    updateForm(currentForm.id, { title: e.target.value, name: e.target.value });
                     triggerAutoSave();
                   }}
                 className="text-sm sm:text-lg lg:text-xl font-semibold bg-transparent border-none focus:ring-0 focus:outline-none min-w-0 flex-shrink truncate"

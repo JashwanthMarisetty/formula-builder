@@ -821,6 +821,506 @@ const deleteResponse = async (req, res) => {
   }
 };
 
+// SIMPLIFIED FIELD OPERATIONS
+
+// Add field to specific page (backend generates ID)
+const addFieldToPage = async (req, res) => {
+  try {
+    const { formId, pageId } = req.params;
+    const fieldData = req.body;
+
+    // Find the form
+    const form = await Form.findById(formId);
+    if (!form) {
+      return res.status(404).json({
+        success: false,
+        message: "Form not found"
+      });
+    }
+
+    // Check ownership
+    if (form.createdBy.toString() !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied"
+      });
+    }
+
+    // Find the page
+    const pageIndex = form.pages.findIndex(p => p.id === pageId);
+    if (pageIndex === -1) {
+      return res.status(404).json({
+        success: false,
+        message: "Page not found"
+      });
+    }
+
+    // Generate new field with backend ID
+    const newField = {
+      id: new Date().getTime().toString() + Math.random().toString(36).substr(2, 9),
+      type: fieldData.type,
+      label: fieldData.label || 'New Field',
+      placeholder: fieldData.placeholder || '',
+      required: fieldData.required || false,
+      options: fieldData.options || [],
+      validation: fieldData.validation || {},
+      subfields: fieldData.subfields || []
+    };
+
+    // Add field to page
+    form.pages[pageIndex].fields.push(newField);
+    
+    // Update flat fields array for backward compatibility
+    form.fields = form.pages.flatMap(page => page.fields);
+    
+    await form.save();
+
+    res.status(201).json({
+      success: true,
+      message: "Field added successfully",
+      data: {
+        field: newField,
+        form: form
+      }
+    });
+  } catch (error) {
+    console.error("Error adding field:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: error.message
+    });
+  }
+};
+
+// Update specific field
+const updateField = async (req, res) => {
+  try {
+    const { formId, fieldId } = req.params;
+    const updates = req.body;
+
+    const form = await Form.findById(formId);
+    if (!form) {
+      return res.status(404).json({
+        success: false,
+        message: "Form not found"
+      });
+    }
+
+    if (form.createdBy.toString() !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied"
+      });
+    }
+
+    // Find and update field in pages
+    let fieldFound = false;
+    for (let page of form.pages) {
+      const fieldIndex = page.fields.findIndex(f => f.id === fieldId);
+      if (fieldIndex !== -1) {
+        page.fields[fieldIndex] = { ...page.fields[fieldIndex], ...updates };
+        fieldFound = true;
+        break;
+      }
+    }
+
+    if (!fieldFound) {
+      return res.status(404).json({
+        success: false,
+        message: "Field not found"
+      });
+    }
+
+    // Update flat fields array
+    form.fields = form.pages.flatMap(page => page.fields);
+    
+    await form.save();
+
+    res.json({
+      success: true,
+      message: "Field updated successfully",
+      data: form
+    });
+  } catch (error) {
+    console.error("Error updating field:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: error.message
+    });
+  }
+};
+
+// Delete specific field
+const deleteField = async (req, res) => {
+  try {
+    const { formId, fieldId } = req.params;
+
+    const form = await Form.findById(formId);
+    if (!form) {
+      return res.status(404).json({
+        success: false,
+        message: "Form not found"
+      });
+    }
+
+    if (form.createdBy.toString() !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied"
+      });
+    }
+
+    // Remove field from pages
+    let fieldFound = false;
+    for (let page of form.pages) {
+      const fieldIndex = page.fields.findIndex(f => f.id === fieldId);
+      if (fieldIndex !== -1) {
+        page.fields.splice(fieldIndex, 1);
+        fieldFound = true;
+        break;
+      }
+    }
+
+    if (!fieldFound) {
+      return res.status(404).json({
+        success: false,
+        message: "Field not found"
+      });
+    }
+
+    // Update flat fields array
+    form.fields = form.pages.flatMap(page => page.fields);
+    
+    // Remove conditional rules related to this field
+    form.conditionalRules = form.conditionalRules.filter(rule => 
+      rule.triggerFieldId !== fieldId && rule.targetFieldId !== fieldId
+    );
+    
+    await form.save();
+
+    res.json({
+      success: true,
+      message: "Field deleted successfully",
+      data: form
+    });
+  } catch (error) {
+    console.error("Error deleting field:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: error.message
+    });
+  }
+};
+
+// Add page to form
+const addPageToForm = async (req, res) => {
+  try {
+    const { formId } = req.params;
+    const { name } = req.body;
+
+    const form = await Form.findById(formId);
+    if (!form) {
+      return res.status(404).json({
+        success: false,
+        message: "Form not found"
+      });
+    }
+
+    if (form.createdBy.toString() !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied"
+      });
+    }
+
+    // Check page limit
+    if (form.pages.length >= 10) {
+      return res.status(400).json({
+        success: false,
+        message: "Maximum 10 pages allowed per form"
+      });
+    }
+
+    // Generate new page with backend ID
+    const newPage = {
+      id: new Date().getTime().toString() + Math.random().toString(36).substr(2, 9),
+      name: name || `Page ${form.pages.length + 1}`,
+      fields: []
+    };
+
+    form.pages.push(newPage);
+    await form.save();
+
+    res.status(201).json({
+      success: true,
+      message: "Page added successfully",
+      data: {
+        page: newPage,
+        form: form
+      }
+    });
+  } catch (error) {
+    console.error("Error adding page:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: error.message
+    });
+  }
+};
+
+// Delete page from form
+const deletePageFromForm = async (req, res) => {
+  try {
+    const { formId, pageId } = req.params;
+
+    const form = await Form.findById(formId);
+    if (!form) {
+      return res.status(404).json({
+        success: false,
+        message: "Form not found"
+      });
+    }
+
+    if (form.createdBy.toString() !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied"
+      });
+    }
+
+    // Can't delete the last page
+    if (form.pages.length <= 1) {
+      return res.status(400).json({
+        success: false,
+        message: "Cannot delete the last remaining page"
+      });
+    }
+
+    const pageIndex = form.pages.findIndex(p => p.id === pageId);
+    if (pageIndex === -1) {
+      return res.status(404).json({
+        success: false,
+        message: "Page not found"
+      });
+    }
+
+    // Get field IDs from the page being deleted
+    const fieldsToDelete = form.pages[pageIndex].fields.map(f => f.id);
+    
+    // Remove the page
+    form.pages.splice(pageIndex, 1);
+    
+    // Update flat fields array
+    form.fields = form.pages.flatMap(page => page.fields);
+    
+    // Remove conditional rules related to fields from deleted page
+    form.conditionalRules = form.conditionalRules.filter(rule => 
+      !fieldsToDelete.includes(rule.triggerFieldId) && 
+      !fieldsToDelete.includes(rule.targetFieldId) &&
+      rule.targetPageId !== pageId
+    );
+    
+    await form.save();
+
+    res.json({
+      success: true,
+      message: "Page deleted successfully",
+      data: form
+    });
+  } catch (error) {
+    console.error("Error deleting page:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: error.message
+    });
+  }
+};
+
+// Get form analytics
+const getFormAnalytics = async (req, res) => {
+  try {
+    const { formId } = req.params;
+
+    const form = await Form.findById(formId).select("title responses views fields createdBy createdAt updatedAt");
+    if (!form) {
+      return res.status(404).json({
+        success: false,
+        message: "Form not found"
+      });
+    }
+
+    if (form.createdBy.toString() !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied"
+      });
+    }
+
+    // Calculate analytics
+    const analytics = {
+      totalResponses: form.responses?.length || 0,
+      totalViews: form.views || 0,
+      totalFields: form.fields?.length || 0,
+      responseRate: form.views > 0 ? (((form.responses?.length || 0) / form.views) * 100).toFixed(2) : 0,
+      lastResponseAt: form.responses && form.responses.length > 0
+        ? new Date(Math.max(...form.responses.map(r => new Date(r.submittedAt))))
+        : null,
+      daysSinceCreated: Math.floor((new Date() - new Date(form.createdAt)) / (1000 * 60 * 60 * 24)),
+      daysSinceUpdated: Math.floor((new Date() - new Date(form.updatedAt)) / (1000 * 60 * 60 * 24))
+    };
+
+    res.json({
+      success: true,
+      message: "Analytics retrieved successfully",
+      data: analytics
+    });
+  } catch (error) {
+    console.error("Error getting analytics:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: error.message
+    });
+  }
+};
+
+// CONDITIONAL LOGIC OPERATIONS
+
+// Add conditional rule
+const addConditionalRule = async (req, res) => {
+  try {
+    const { formId } = req.params;
+    const ruleData = req.body;
+
+    const form = await Form.findById(formId);
+    if (!form) {
+      return res.status(404).json({
+        success: false,
+        message: "Form not found"
+      });
+    }
+
+    if (form.createdBy.toString() !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied"
+      });
+    }
+
+    // Generate new rule with backend ID
+    const newRule = {
+      id: new Date().getTime().toString() + Math.random().toString(36).substr(2, 9),
+      triggerFieldId: ruleData.triggerFieldId,
+      targetFieldId: ruleData.targetFieldId,
+      targetPageId: ruleData.targetPageId,
+      condition: ruleData.condition,
+      value: ruleData.value || '',
+      action: ruleData.action
+    };
+
+    form.conditionalRules.push(newRule);
+    await form.save();
+
+    res.status(201).json({
+      success: true,
+      message: "Conditional rule added successfully",
+      data: newRule
+    });
+  } catch (error) {
+    console.error("Error adding conditional rule:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: error.message
+    });
+  }
+};
+
+// Get conditional rules
+const getConditionalRules = async (req, res) => {
+  try {
+    const { formId } = req.params;
+
+    const form = await Form.findById(formId).select("conditionalRules createdBy");
+    if (!form) {
+      return res.status(404).json({
+        success: false,
+        message: "Form not found"
+      });
+    }
+
+    if (form.createdBy.toString() !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied"
+      });
+    }
+
+    res.json({
+      success: true,
+      message: "Conditional rules retrieved successfully",
+      data: form.conditionalRules || []
+    });
+  } catch (error) {
+    console.error("Error getting conditional rules:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: error.message
+    });
+  }
+};
+
+// Delete conditional rule
+const deleteConditionalRule = async (req, res) => {
+  try {
+    const { formId, ruleId } = req.params;
+
+    const form = await Form.findById(formId);
+    if (!form) {
+      return res.status(404).json({
+        success: false,
+        message: "Form not found"
+      });
+    }
+
+    if (form.createdBy.toString() !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied"
+      });
+    }
+
+    const ruleIndex = form.conditionalRules.findIndex(r => r.id === ruleId);
+    if (ruleIndex === -1) {
+      return res.status(404).json({
+        success: false,
+        message: "Conditional rule not found"
+      });
+    }
+
+    form.conditionalRules.splice(ruleIndex, 1);
+    await form.save();
+
+    res.json({
+      success: true,
+      message: "Conditional rule deleted successfully"
+    });
+  } catch (error) {
+    console.error("Error deleting conditional rule:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   createForm,
   getAllForms,
@@ -832,4 +1332,14 @@ module.exports = {
   getFormResponses,
   getResponseById,
   deleteResponse,
+  // New simplified endpoints
+  addFieldToPage,
+  updateField,
+  deleteField,
+  addPageToForm,
+  deletePageFromForm,
+  getFormAnalytics,
+  addConditionalRule,
+  getConditionalRules,
+  deleteConditionalRule
 };

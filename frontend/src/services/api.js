@@ -344,6 +344,246 @@ export const formAPI = {
       throw error;
     }
   },
+
+  // SIMPLIFIED FIELD OPERATIONS
+
+  // Add field to specific page (backend generates ID)
+  addFieldToPage: async (formId, pageId, fieldData) => {
+    const token = getToken();
+    try {
+      const response = await api.post(`/forms/${formId}/pages/${pageId}/fields`, fieldData, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      return response.data;
+    } catch (error) {
+      if (error.response?.status === 401) {
+        try {
+          await authUtils.refreshToken();
+          const newToken = getToken();
+          const response = await api.post(`/forms/${formId}/pages/${pageId}/fields`, fieldData, {
+            headers: { Authorization: `Bearer ${newToken}` }
+          });
+          return response.data;
+        } catch (refreshError) {
+          authUtils.clearAuth();
+          throw refreshError;
+        }
+      }
+      throw error;
+    }
+  },
+
+  // Update specific field
+  updateFieldById: async (formId, fieldId, updates) => {
+    const token = getToken();
+    try {
+      const response = await api.patch(`/forms/${formId}/fields/${fieldId}`, updates, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      return response.data;
+    } catch (error) {
+      if (error.response?.status === 401) {
+        try {
+          await authUtils.refreshToken();
+          const newToken = getToken();
+          const response = await api.patch(`/forms/${formId}/fields/${fieldId}`, updates, {
+            headers: { Authorization: `Bearer ${newToken}` }
+          });
+          return response.data;
+        } catch (refreshError) {
+          authUtils.clearAuth();
+          throw refreshError;
+        }
+      }
+      throw error;
+    }
+  },
+
+  // Delete specific field
+  deleteFieldById: async (formId, fieldId) => {
+    const token = getToken();
+    try {
+      const response = await api.delete(`/forms/${formId}/fields/${fieldId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      return response.data;
+    } catch (error) {
+      if (error.response?.status === 401) {
+        try {
+          await authUtils.refreshToken();
+          const newToken = getToken();
+          const response = await api.delete(`/forms/${formId}/fields/${fieldId}`, {
+            headers: { Authorization: `Bearer ${newToken}` }
+          });
+          return response.data;
+        } catch (refreshError) {
+          authUtils.clearAuth();
+          throw refreshError;
+        }
+      }
+      throw error;
+    }
+  },
+
+  // PAGE OPERATIONS
+
+  // Add new page to form
+  addPageToForm: async (formId, pageData) => {
+    const token = getToken();
+    try {
+      const response = await api.post(`/forms/${formId}/pages`, pageData, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      return response.data;
+    } catch (error) {
+      if (error.response?.status === 401) {
+        try {
+          await authUtils.refreshToken();
+          const newToken = getToken();
+          const response = await api.post(`/forms/${formId}/pages`, pageData, {
+            headers: { Authorization: `Bearer ${newToken}` }
+          });
+          return response.data;
+        } catch (refreshError) {
+          authUtils.clearAuth();
+          throw refreshError;
+        }
+      }
+      throw error;
+    }
+  },
+
+  // Delete specific page
+  deletePageById: async (formId, pageId) => {
+    const token = getToken();
+    try {
+      const response = await api.delete(`/forms/${formId}/pages/${pageId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      return response.data;
+    } catch (error) {
+      if (error.response?.status === 401) {
+        try {
+          await authUtils.refreshToken();
+          const newToken = getToken();
+          const response = await api.delete(`/forms/${formId}/pages/${pageId}`, {
+            headers: { Authorization: `Bearer ${newToken}` }
+          });
+          return response.data;
+        } catch (refreshError) {
+          authUtils.clearAuth();
+          throw refreshError;
+        }
+      }
+      throw error;
+    }
+  },
+
+  // Get form analytics
+  getFormAnalytics: async (formId) => {
+    const token = getToken();
+    try {
+      const response = await api.get(`/forms/${formId}/analytics`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      return response.data;
+    } catch (error) {
+      if (error.response?.status === 401) {
+        try {
+          await authUtils.refreshToken();
+          const newToken = getToken();
+          const response = await api.get(`/forms/${formId}/analytics`, {
+            headers: { Authorization: `Bearer ${newToken}` }
+          });
+          return response.data;
+        } catch (refreshError) {
+          authUtils.clearAuth();
+          throw refreshError;
+        }
+      }
+      throw error;
+    }
+  },
+
+  // CONDITIONAL LOGIC OPERATIONS
+
+  // Add conditional rule
+  addConditionalRule: async (formId, ruleData) => {
+    const token = getToken();
+    try {
+      const response = await api.post(`/forms/${formId}/conditional-rules`, ruleData, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      return response.data;
+    } catch (error) {
+      if (error.response?.status === 401) {
+        try {
+          await authUtils.refreshToken();
+          const newToken = getToken();
+          const response = await api.post(`/forms/${formId}/conditional-rules`, ruleData, {
+            headers: { Authorization: `Bearer ${newToken}` }
+          });
+          return response.data;
+        } catch (refreshError) {
+          authUtils.clearAuth();
+          throw refreshError;
+        }
+      }
+      throw error;
+    }
+  },
+
+  // Get conditional rules
+  getConditionalRules: async (formId) => {
+    const token = getToken();
+    try {
+      const response = await api.get(`/forms/${formId}/conditional-rules`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      return response.data;
+    } catch (error) {
+      if (error.response?.status === 401) {
+        try {
+          await authUtils.refreshToken();
+          const newToken = getToken();
+          const response = await api.get(`/forms/${formId}/conditional-rules`, {
+            headers: { Authorization: `Bearer ${newToken}` }
+          });
+          return response.data;
+        } catch (refreshError) {
+          authUtils.clearAuth();
+          throw refreshError;
+        }
+      }
+      throw error;
+    }
+  },
+
+  // Delete conditional rule
+  deleteConditionalRule: async (formId, ruleId) => {
+    const token = getToken();
+    try {
+      const response = await api.delete(`/forms/${formId}/conditional-rules/${ruleId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      return response.data;
+    } catch (error) {
+      if (error.response?.status === 401) {
+        try {
+          await authUtils.refreshToken();
+          const newToken = getToken();
+          const response = await api.delete(`/forms/${formId}/conditional-rules/${ruleId}`, {
+            headers: { Authorization: `Bearer ${newToken}` }
+          });
+          return response.data;
+        } catch (refreshError) {
+          authUtils.clearAuth();
+          throw refreshError;
+        }
+      }
+      throw error;
+    }
+  },
 };
 
 export { authUtils };
