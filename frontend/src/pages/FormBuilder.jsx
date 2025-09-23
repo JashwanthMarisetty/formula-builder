@@ -46,8 +46,6 @@ const FormBuilder = () => {
   const [autoSaveTimeout, setAutoSaveTimeout] = useState(null);
   const [mobileActiveTab, setMobileActiveTab] = useState('form'); // 'fields', 'form', 'props'
   const [showSaveSuccess, setShowSaveSuccess] = useState(false);
-  const [isCreatingForm, setIsCreatingForm] = useState(false);
-  const navigationRef = useRef(false);
 
   // Cleanup auto-save timeout on unmount
   useEffect(() => {
@@ -64,40 +62,17 @@ const FormBuilder = () => {
       const form = forms.find(f => f.id === formId);
       if (form) {
         setCurrentForm(form);
-        navigationRef.current = false;
       } else {
         // Form not found, redirect to dashboard
         console.log('Form not found:', formId);
         navigate('/dashboard');
       }
-    } else if (!isCreatingForm && !navigationRef.current) {
-      // Prevent duplicate form creation
-      setIsCreatingForm(true);
-      navigationRef.current = true;
-      
-      // Create new form asynchronously
-      const handleCreateNewForm = async () => {
-        try {
-          const newForm = await createForm({ name: 'Untitled Form' });
-          if (newForm && newForm.id) {
-            navigate(`/form-builder/${newForm.id}`, { replace: true });
-          } else {
-            navigate('/dashboard');
-          }
-        } catch (error) {
-          console.error('Failed to create form:', error);
-          navigate('/dashboard');
-        } finally {
-          // Reset creation flag after navigation
-          setTimeout(() => {
-            setIsCreatingForm(false);
-          }, 100);
-        }
-      };
-      
-      handleCreateNewForm();
+    } else {
+      // No formId provided, redirect to dashboard
+      console.log('No form ID provided, redirecting to dashboard');
+      navigate('/dashboard');
     }
-  }, [formId, forms, setCurrentForm, navigate, isCreatingForm]);
+  }, [formId, forms, setCurrentForm, navigate]);
   
   // Sync currentForm when forms are updated (important for field operations)
   useEffect(() => {

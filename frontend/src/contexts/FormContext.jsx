@@ -138,33 +138,28 @@ export const FormProvider = ({ children }) => {
 
   const createForm = useCallback(async (formData) => {
     try {
-      // Create form on backend
-      const backendFormData = {
-        title: formData.name || formData.title || 'Untitled Form',
-        fields: [],
-        status: 'draft'
-      };
-      
-      const response = await formAPI.createForm(backendFormData);
+      // Send minimal data - let backend handle defaults
+      const response = await formAPI.createForm({
+        title: formData.title || formData.name || 'Untitled Form'
+      });
       
       if (response.success) {
         // Transform backend response to frontend format
-        // Handle both possible response formats
-        const formData = response.data || response.form;
+        const backendForm = response.data;
         const newForm = {
-          id: formData._id,
-          name: formData.title,
-          title: formData.title,
-          fields: formData.fields || [],
-          pages: [{ id: 'page-1', name: 'Page 1', fields: formData.fields || [] }],
-          status: formData.status,
+          id: backendForm._id,
+          name: backendForm.title,
+          title: backendForm.title,
+          fields: backendForm.fields || [],
+          pages: backendForm.pages || [{ id: 'page-1', name: 'Page 1', fields: backendForm.fields || [] }],
+          status: backendForm.status || 'draft',
           visibility: 'private',
-          responses: formData.responses || [],
-          createdAt: formData.createdAt,
-          updatedAt: formData.updatedAt,
+          responses: backendForm.responses || [],
+          createdAt: backendForm.createdAt,
+          updatedAt: backendForm.updatedAt,
           location: 'inbox',
-          views: formData.views || 0,
-          createdBy: formData.createdBy
+          views: backendForm.views || 0,
+          createdBy: backendForm.createdBy
         };
         
         setForms(prev => [...prev, newForm]);
@@ -176,24 +171,7 @@ export const FormProvider = ({ children }) => {
       }
     } catch (error) {
       console.error('Failed to create form:', error);
-      // Fallback to local creation
-      const newForm = {
-        id: uuidv4(),
-        name: formData.name || 'Untitled Form',
-        fields: [],
-        pages: [{ id: 'page-1', name: 'Page 1', fields: [] }],
-        status: 'draft',
-        visibility: 'private',
-        responses: [],
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        location: 'inbox'
-      };
-      
-      setForms(prev => [...prev, newForm]);
-      setCurrentForm(newForm);
-      
-      return newForm;
+      throw error; // Let the UI handle the error instead of fallback
     }
   }, []);
 

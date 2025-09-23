@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useForm } from '../contexts/FormContext';
 import { FormInputIcon as FormIcon, User, LogOut, Menu, X } from 'lucide-react';
 
 const Navbar = () => {
   const { user, logout } = useAuth();
+  const { createForm } = useForm();
   const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -12,6 +14,19 @@ const Navbar = () => {
   const handleLogout = () => {
     logout();
     navigate('/');
+  };
+
+  const handleCreateForm = async () => {
+    try {
+      const newForm = await createForm({ name: "Untitled Form" });
+      if (newForm && newForm.id) {
+        navigate(`/form-builder/${newForm.id}`);
+      } else {
+        console.error("Form creation failed: no form returned or no ID");
+      }
+    } catch (error) {
+      console.error("Failed to create form:", error);
+    }
   };
 
   return (
@@ -34,9 +49,12 @@ const Navbar = () => {
             <Link to="/my-forms" className="text-gray-700 hover:text-purple-600 transition-colors">
               My Forms
             </Link>
-            <Link to="/form-builder" className="text-gray-700 hover:text-purple-600 transition-colors">
+            <button
+              onClick={handleCreateForm}
+              className="text-gray-700 hover:text-purple-600 transition-colors"
+            >
               Create Form
-            </Link>
+            </button>
           </div>
 
           {/* User Profile - Desktop */}
@@ -105,13 +123,15 @@ const Navbar = () => {
               >
                 My Forms
               </Link>
-              <Link
-                to="/form-builder"
-                className="text-gray-700 hover:text-purple-600 transition-colors"
-                onClick={() => setIsMenuOpen(false)}
+              <button
+                onClick={() => {
+                  setIsMenuOpen(false);
+                  handleCreateForm();
+                }}
+                className="text-gray-700 hover:text-purple-600 transition-colors text-left"
               >
                 Create Form
-              </Link>
+              </button>
               <div className="border-t pt-4">
                 <div className="flex items-center space-x-2 mb-3">
                   <img

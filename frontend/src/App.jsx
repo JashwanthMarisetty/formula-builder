@@ -32,7 +32,7 @@ function App() {
                   <Dashboard />
                 </ProtectedRoute>
               } />
-              <Route path="/form-builder/:formId?" element={
+              <Route path="/form-builder/:formId" element={
                 <ProtectedRoute>
                   <FormBuilder />
                 </ProtectedRoute>

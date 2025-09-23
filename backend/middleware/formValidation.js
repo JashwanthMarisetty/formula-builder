@@ -1,44 +1,16 @@
 const { body, param, query } = require("express-validator");
 
 /**
- * Validation middleware for creating a new form
- * Purpose: Ensures form creation data is valid before processing
+ * Simplified validation middleware for creating a new form
+ * Purpose: Only validate the essential data - title
  */
 const createFormValidation = [
   body("title")
-    .notEmpty()
-    .withMessage("Form title is required")
-    .isLength({ min: 1, max: 200 })
-    .withMessage("Form title must be between 1 and 200 characters")
+    .optional() // Make title optional with default fallback
+    .isLength({ max: 200 })
+    .withMessage("Form title cannot exceed 200 characters")
     .trim()
-    .escape(), // Prevents XSS attacks
-  
-  body("fields")
-    .optional()
-    .isArray()
-    .withMessage("Fields must be an array")
-    .custom((fields) => {
-      // Validate each field in the array
-      if (fields && fields.length > 0) {
-        for (let field of fields) {
-          if (!field.id || !field.type || !field.label) {
-            throw new Error("Each field must have id, type, and label");
-          }
-          
-          // Validate field types
-          const allowedTypes = ['text', 'email', 'number', 'textarea', 'select', 'radio', 'checkbox', 'date', 'time', 'file'];
-          if (!allowedTypes.includes(field.type)) {
-            throw new Error(`Invalid field type: ${field.type}`);
-          }
-        }
-      }
-      return true;
-    }),
-
-  body("status")
-    .optional()
-    .isIn(['draft', 'published', 'closed'])
-    .withMessage("Status must be either draft, published, or closed")
+    .escape() // Prevents XSS attacks
 ];
 
 /**

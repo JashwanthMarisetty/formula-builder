@@ -1,7 +1,7 @@
 const Form = require("../models/Form");
 const { validationResult } = require("express-validator");
 
-// CREATE - Create a new form
+// CREATE - Create a new form (simplified)
 const createForm = async (req, res) => {
   try {
     // Check for validation errors from middleware
@@ -14,56 +14,28 @@ const createForm = async (req, res) => {
       });
     }
 
-    // Extract data from request body
-    const { title, fields = [], pages = [] } = req.body;
+    // Extract title from request (simplified - only title needed)
+    const { title = "Untitled Form" } = req.body;
 
-    // Additional title validation
-    if (!title || title.trim().length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: "Form title is required and cannot be empty",
-      });
-    }
-
-    // Initialize form data with default page if no pages provided
-    let formData = {
+    // Create form with sensible defaults
+    const formData = {
       title: title.trim(),
       createdBy: req.user.id,
       status: "draft",
-      responses: [],
-    };
-
-    if (pages && pages.length > 0) {
-      // Multi-page form: use pages structure
-      formData.pages = pages;
-
-      const allFields = [];
-
-      for (const page of pages) {
-        if (Array.isArray(page.fields)) {
-         for (const field of page.fields) {
-           allFields.push(field);
-         }
-        }
-      }
-
-      formData.fields = allFields;
-    } else {
-      // Legacy or single-page form: convert fields to pages structure
-      formData.fields = fields;
-      formData.pages = [
+      fields: [], // Start empty - user will add fields
+      pages: [
         {
           id: "page-1",
           name: "Page 1",
-          fields: fields,
+          fields: [], // Start with empty page
         },
-      ];
-    }
+      ],
+      responses: [],
+      views: 0
+    };
 
-    // Create new form instance
+    // Create and save new form
     const form = new Form(formData);
-
-    // Save to database
     await form.save();
 
     // Send success response
