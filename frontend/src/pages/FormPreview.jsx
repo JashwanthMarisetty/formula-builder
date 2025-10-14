@@ -1,13 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useForm } from '../contexts/FormContext';
-import { evaluateCondition, getVisibleFields, getNextPageIndex, getVisiblePages } from '../utils/conditionalLogic';
 import Navbar from '../components/Navbar';
 import { ArrowLeft, Send, Upload, Star } from 'lucide-react';
 
 const FormPreview = () => {
   const { formId } = useParams();
-  const { forms, updateForm, fieldConditions, pageConditions } = useForm();
+  const { forms, updateForm } = useForm();
   const navigate = useNavigate();
   const [formData, setFormData] = useState({});
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
@@ -15,25 +14,8 @@ const FormPreview = () => {
 
   const form = forms.find(f => f.id === formId);
 
-  // Get all fields with page information for conditional logic
-  const getAllFields = () => {
-    if (!form) return [];
-    return form.pages.flatMap(page => 
-      page.fields.map(field => ({
-        ...field,
-        pageId: page.id,
-        pageName: page.name
-      }))
-    );
-  };
-
-  const allFields = getAllFields();
-  const formFieldConditions = fieldConditions.filter(c => c.formId === formId);
-  const formPageConditions = pageConditions.filter(c => c.formId === formId);
-
-  // Get visible pages based on conditions
-  const visiblePageIds = getVisiblePages(form?.pages || [], formPageConditions, formData, allFields);
-  const visiblePages = form?.pages?.filter(page => visiblePageIds.includes(page.id)) || [];
+  // In preview, show all pages in order (conditional logic disabled)
+  const visiblePages = form?.pages || [];
 
   useEffect(() => {
     if (form) {
@@ -115,11 +97,10 @@ const FormPreview = () => {
     const pageErrors = {};
     let hasErrors = false;
 
-    // Get visible fields for current page
-    const visibleFieldIds = getVisibleFields(currentPage.fields, formFieldConditions, formData, allFields);
-    const visibleFields = currentPage.fields.filter(field => visibleFieldIds.includes(field.id));
+    // Validate all fields on the current page (no conditional filtering)
+    const fields = currentPage.fields || [];
 
-    visibleFields.forEach(field => {
+    fields.forEach(field => {
       const error = validateField(field);
       if (error) {
         pageErrors[field.id] = error;
@@ -145,9 +126,7 @@ const FormPreview = () => {
   const handleNext = (e) => {
     e.preventDefault();
     if (validateCurrentPage()) {
-      // Use conditional logic to determine next page
-      const nextIndex = getNextPageIndex(currentPageIndex, visiblePages, formPageConditions, formData, allFields);
-      setCurrentPageIndex(nextIndex);
+      setCurrentPageIndex(prev => Math.min(prev + 1, visiblePages.length - 1));
     }
   };
 
@@ -403,78 +382,12 @@ const FormPreview = () => {
     );
   }
 
-  if (visiblePages.length === 0) {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <Navbar />
-        <div className="max-w-2xl mx-auto px-4 py-8">
-          <div className="bg-white rounded-lg shadow-sm p-8">
-            <div className="text-center">
-              <h1 className="text-2xl font-bold text-gray-900 mb-4">{form.name}</h1>
-              <p className="text-gray-600 mb-8">No pages are currently visible based on your conditions.</p>
-              <Link
-                to={`/form-builder/${form.id}`}
-                className="bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 transition-colors"
-              >
-                Edit Form
-              </Link>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   const currentPage = visiblePages[currentPageIndex];
   const isLastPage = currentPageIndex === visiblePages.length - 1;
 
-  // Get visible fields for current page
-  const visibleFieldIds = getVisibleFields(currentPage.fields, formFieldConditions, formData, allFields);
-  const visibleFields = currentPage.fields.filter(field => visibleFieldIds.includes(field.id));
-
-  if (visibleFields.length === 0) {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <Navbar />
-        <div className="max-w-2xl mx-auto px-4 py-8">
-          <div className="bg-white rounded-lg shadow-sm p-8">
-            <div className="text-center">
-              <h1 className="text-2xl font-bold text-gray-900 mb-4">{form.name}</h1>
-              <p className="text-gray-600 mb-8">No fields are visible on this page based on your responses.</p>
-              <div className="flex justify-between">
-                {currentPageIndex > 0 ? (
-                  <button
-                    onClick={handlePrevious}
-                    className="bg-gray-600 text-white px-6 py-3 rounded-lg hover:bg-gray-700 transition-colors"
-                  >
-                    Previous
-                  </button>
-                ) : (
-                  <div></div>
-                )}
-                {!isLastPage ? (
-                  <button
-                    onClick={handleNext}
-                    className="bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 transition-colors"
-                  >
-                    Next
-                  </button>
-                ) : (
-                  <button
-                    onClick={handleSubmit}
-                    className="bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 transition-colors flex items-center space-x-2"
-                  >
-                    <Send className="w-4 h-4" />
-                    <span>Submit Form</span>
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  // No conditional filtering: use all fields on the current page
+  const fields = currentPage.fields || [];
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -511,7 +424,7 @@ const FormPreview = () => {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
-            {visibleFields.map((field) => (
+            {fields.map((field) => (
               <div key={field.id}>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   {field.label}

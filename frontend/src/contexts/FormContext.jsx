@@ -19,8 +19,6 @@ export const FormProvider = ({ children }) => {
   const { isAuthenticated, isLoading } = useAuth();
   const [forms, setForms] = useState([]);
   const [currentForm, setCurrentForm] = useState(null);
-  const [fieldConditions, setFieldConditions] = useState([]);
-  const [pageConditions, setPageConditions] = useState([]);
   const [isLoadingForms, setIsLoadingForms] = useState(false);
   const [chatbotSettings, setChatbotSettings] = useState({
     enabled: false,
@@ -101,16 +99,6 @@ export const FormProvider = ({ children }) => {
       loadForms();
     }
     
-    // Load conditions from localStorage (we'll migrate these to backend later)
-    const savedFieldConditions = localStorage.getItem('formula_field_conditions');
-    if (savedFieldConditions) {
-      setFieldConditions(JSON.parse(savedFieldConditions));
-    }
-    
-    const savedPageConditions = localStorage.getItem('formula_page_conditions');
-    if (savedPageConditions) {
-      setPageConditions(JSON.parse(savedPageConditions));
-    }
   }, [loadForms]);
 
   useEffect(() => {
@@ -118,14 +106,6 @@ export const FormProvider = ({ children }) => {
     localStorage.setItem('formula_forms', JSON.stringify(forms));
   }, [forms]);
 
-  useEffect(() => {
-    // Save conditions to localStorage
-    localStorage.setItem('formula_field_conditions', JSON.stringify(fieldConditions));
-  }, [fieldConditions]);
-
-  useEffect(() => {
-    localStorage.setItem('formula_page_conditions', JSON.stringify(pageConditions));
-  }, [pageConditions]);
 
   // Reload forms when authentication status changes
   useEffect(() => {
@@ -247,9 +227,6 @@ export const FormProvider = ({ children }) => {
 
   const deleteForm = useCallback((formId) => {
     setForms(prev => prev.filter(form => form.id !== formId));
-    // Also remove related conditions
-    setFieldConditions(prev => prev.filter(condition => condition.formId !== formId));
-    setPageConditions(prev => prev.filter(condition => condition.formId !== formId));
     if (currentForm && currentForm.id === formId) {
       setCurrentForm(null);
     }
@@ -478,66 +455,18 @@ export const FormProvider = ({ children }) => {
     const pageToDelete = form.pages[pageIndex];
     const fieldsToDelete = pageToDelete.fields.map(f => f.id);
     
-    // Clean up conditional logic for deleted page and fields
-    setFieldConditions(prev => prev.filter(condition => 
-      !fieldsToDelete.includes(condition.triggerFieldId) && 
-      !fieldsToDelete.includes(condition.targetFieldId)
-    ));
-    
-    setPageConditions(prev => prev.filter(condition => 
-      !fieldsToDelete.includes(condition.triggerFieldId) && 
-      condition.targetPageId !== pageToDelete.id
-    ));
-    
     const newPages = form.pages.filter((_, index) => index !== pageIndex);
     updateForm(formId, {
       pages: newPages
     });
   }, [forms, updateForm]);
 
-  const addFieldCondition = useCallback((condition) => {
-    const newCondition = {
-      id: uuidv4(),
-      ...condition
-    };
-    setFieldConditions(prev => [...prev, newCondition]);
-  }, []);
-
-  const removeFieldCondition = useCallback((id) => {
-    setFieldConditions(prev => prev.filter(condition => condition.id !== id));
-  }, []);
-
-  const addPageCondition = useCallback((condition) => {
-    const newCondition = {
-      id: uuidv4(),
-      ...condition
-    };
-    setPageConditions(prev => [...prev, newCondition]);
-  }, []);
-
-  const removePageCondition = useCallback((id) => {
-    setPageConditions(prev => prev.filter(condition => condition.id !== id));
-  }, []);
-
-  const updateFieldCondition = useCallback((id, updates) => {
-    setFieldConditions(prev => prev.map(condition =>
-      condition.id === id ? { ...condition, ...updates } : condition
-    ));
-  }, []);
-
-  const updatePageCondition = useCallback((id, updates) => {
-    setPageConditions(prev => prev.map(condition =>
-      condition.id === id ? { ...condition, ...updates } : condition
-    ));
-  }, []);
 
   // Memoize context value to prevent unnecessary re-renders
   const value = useMemo(() => ({
     forms,
     currentForm,
     setCurrentForm,
-    fieldConditions,
-    pageConditions,
     chatbotSettings,
     setChatbotSettings,
     isLoadingForms,
@@ -552,18 +481,10 @@ export const FormProvider = ({ children }) => {
     updateField,
     removeField,
     addFormPage,
-    deleteFormPage,
-    addFieldCondition,
-    removeFieldCondition,
-    addPageCondition,
-    removePageCondition,
-    updateFieldCondition,
-    updatePageCondition
+    deleteFormPage
   }), [
     forms,
     currentForm,
-    fieldConditions,
-    pageConditions,
     chatbotSettings,
     setChatbotSettings,
     isLoadingForms,
@@ -578,13 +499,7 @@ export const FormProvider = ({ children }) => {
     updateField,
     removeField,
     addFormPage,
-    deleteFormPage,
-    addFieldCondition,
-    removeFieldCondition,
-    addPageCondition,
-    removePageCondition,
-    updateFieldCondition,
-    updatePageCondition
+    deleteFormPage
   ]);
 
   return (

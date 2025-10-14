@@ -15,7 +15,6 @@ import {
   Plus, 
   ChevronLeft, 
   ChevronRight,
-  GitBranch,
   Trash2,
   Check,
   Layers,
@@ -312,13 +311,6 @@ const FormBuilder = () => {
             
             {/* Right Section: Action buttons */}
             <div className="flex items-center space-x-1 sm:space-x-2 lg:space-x-4 flex-1 justify-end">
-              <Link
-                to={`/conditional-logic/${currentForm.id}`}
-                className="text-gray-600 hover:text-purple-600 transition-colors p-2"
-                title="Conditional Logic"
-              >
-                <GitBranch className="w-4 h-4 sm:w-5 sm:h-5" />
-              </Link>
               <button
                 onClick={() => setShowShareModal(true)}
                 className="hidden sm:flex items-center space-x-1 lg:space-x-2 bg-green-600 text-white px-2 lg:px-4 py-1 lg:py-2 rounded-lg hover:bg-green-700 transition-colors text-xs lg:text-sm"
