@@ -11,7 +11,6 @@ import FormPreview from './pages/FormPreview';
 import FormResponses from './pages/FormResponses';
 import MyForms from './pages/MyForms';
 import Profile from './pages/Profile';
-import ConditionalLogic from './pages/ConditionalLogic';
 import ActivityLogs from './pages/ActivityLogs';
 import PublicForm from './pages/PublicForm';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -55,11 +54,6 @@ function App() {
               <Route path="/profile" element={
                 <ProtectedRoute>
                   <Profile />
-                </ProtectedRoute>
-              } />
-              <Route path="/conditional-logic/:formId" element={
-                <ProtectedRoute>
-                  <ConditionalLogic />
                 </ProtectedRoute>
               } />
               <Route path="/activity-logs" element={
