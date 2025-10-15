@@ -171,6 +171,14 @@ const formSchema = new mongoose.Schema(
       default: 0,
       min: 0,
     },
+
+    // Location for organizing forms (inbox, trash, archive)
+    location: {
+      type: String,
+      enum: ['inbox', 'trash', 'archive'],
+      default: 'inbox',
+      required: true,
+    },
   },
   {
     timestamps: true, // This automatically adds createdAt and updatedAt
@@ -186,6 +194,9 @@ formSchema.index({ createdBy: 1, status: 1, updatedAt: -1 });
 
 // 3. Title search: Text search for form titles (replaces slow $regex queries)
 formSchema.index({ title: 'text' });
+
+// 4. Location filtering
+formSchema.index({ createdBy: 1, location: 1, updatedAt: -1 });
 
 const Form = mongoose.model("Form", formSchema);
 

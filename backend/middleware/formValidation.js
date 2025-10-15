@@ -38,7 +38,12 @@ const createFormValidation = [
   body("status")
     .optional()
     .isIn(['draft', 'published', 'closed'])
-    .withMessage("Status must be either draft, published, or closed")
+    .withMessage("Status must be either draft, published, or closed"),
+
+  body("location")
+    .optional()
+    .isIn(['inbox', 'trash', 'archive'])
+    .withMessage("Location must be either inbox, trash, or archive")
 ];
 
 /**
@@ -83,7 +88,12 @@ const updateFormValidation = [
   body("status")
     .optional()
     .isIn(['draft', 'published', 'closed'])
-    .withMessage("Status must be either draft, published, or closed")
+    .withMessage("Status must be either draft, published, or closed"),
+
+  body("location")
+    .optional()
+    .isIn(['inbox', 'trash', 'archive'])
+    .withMessage("Location must be either inbox, trash, or archive")
 ];
 
 /**

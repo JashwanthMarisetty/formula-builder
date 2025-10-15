@@ -71,7 +71,7 @@ export const FormProvider = ({ children }) => {
             responses: form.responses || [],
             createdAt: form.createdAt,
             updatedAt: form.updatedAt,
-            location: 'inbox',
+            location: form.location || 'inbox',
             views: form.views || 0,
             createdBy: form.createdBy
           };
@@ -142,7 +142,7 @@ export const FormProvider = ({ children }) => {
           responses: formData.responses || [],
           createdAt: formData.createdAt,
           updatedAt: formData.updatedAt,
-          location: 'inbox',
+          location: formData.location || 'inbox',
           views: formData.views || 0,
           createdBy: formData.createdBy
         };
@@ -204,6 +204,7 @@ export const FormProvider = ({ children }) => {
       const backendData = {
         title: updatedFormData.name || updatedFormData.title,
         status: updatedFormData.status,
+        location: updatedFormData.location,
         pages: updatedFormData.pages || [],
         // Also include flat fields for backwards compatibility
         fields: updatedFormData.pages ? updatedFormData.pages.flatMap(page => page.fields || []) : []

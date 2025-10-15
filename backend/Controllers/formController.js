@@ -30,6 +30,7 @@ const createForm = async (req, res) => {
       title: title.trim(),
       createdBy: req.user.id,
       status: "draft",
+      location: "inbox",
       responses: [],
     };
 
