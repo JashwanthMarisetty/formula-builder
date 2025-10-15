@@ -221,15 +221,19 @@ export const FormProvider = ({ children }) => {
       }
     } catch (error) {
       console.error('Error updating form:', error);
-      // Don't revert local changes - keep the optimistic update
-      // This ensures the UI remains responsive even if backend fails
     }
   }, [currentForm, forms]);
 
-  const deleteForm = useCallback((formId) => {
-    setForms(prev => prev.filter(form => form.id !== formId));
-    if (currentForm && currentForm.id === formId) {
-      setCurrentForm(null);
+  const deleteForm = useCallback(async (formId) => {
+    try {
+      await formAPI.deleteForm(formId);
+      setForms(prev => prev.filter(form => form.id !== formId));
+      if (currentForm && currentForm.id === formId) {
+        setCurrentForm(null);
+      }
+    } catch (error) {
+      console.error('Failed to delete form from server:', error);
+      throw error;
     }
   }, [currentForm]);
 
