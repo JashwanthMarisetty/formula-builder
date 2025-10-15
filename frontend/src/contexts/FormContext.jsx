@@ -380,14 +380,6 @@ export const FormProvider = ({ children }) => {
   }, [currentForm, forms]);
 
   const removeField = useCallback(async (formId, pageId, fieldId) => {
-    // Remove related conditions when field is deleted
-    setFieldConditions(prev => prev.filter(condition => 
-      condition.triggerFieldId !== fieldId && condition.targetFieldId !== fieldId
-    ));
-    setPageConditions(prev => prev.filter(condition => 
-      condition.triggerFieldId !== fieldId
-    ));
-    
     // Update local state immediately for responsive UI
     const updatedForms = forms.map(form => 
       form.id === formId 
