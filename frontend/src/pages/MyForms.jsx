@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useForm } from '../contexts/FormContext';
+import { formAPI } from '../services/api';
 import Navbar from '../components/Navbar';
 import { 
   FileText, 
@@ -28,11 +29,21 @@ import {
 const MyForms = () => {
   const { 
     forms, 
+    pagination,
+    isLoadingForms,
+    loadForms,
     moveFormToTrash, 
     moveFormToArchive, 
     restoreForm, 
     deleteForm 
   } = useForm();
+  
+  // State for tab-specific counts
+  const [tabCounts, setTabCounts] = useState({
+    inbox: 0,
+    archive: 0,
+    trash: 0
+  });
   
   const [activeTab, setActiveTab] = useState('inbox');
   const [showMenu, setShowMenu] = useState(null);
@@ -44,110 +55,68 @@ const MyForms = () => {
   const [showBulkActions, setShowBulkActions] = useState(false);
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [statusFilter, setStatusFilter] = useState('all');
-  const [dateFilter, setDateFilter] = useState('all');
-  const [responseFilter, setResponseFilter] = useState('all');
   const [showConfirmModal, setShowConfirmModal] = useState(null);
   const [showSuccessModal, setShowSuccessModal] = useState(null);
 
-  const filteredForms = forms.filter(form => {
-    // Filter by tab
-    let tabMatch = false;
-    switch (activeTab) {
-      case 'inbox':
-        tabMatch = form.location === 'inbox';
-        break;
-      case 'archive':
-        tabMatch = form.location === 'archive';
-        break;
-      case 'trash':
-        tabMatch = form.location === 'trash';
-        break;
-      default:
-        tabMatch = form.location === 'inbox';
-    }
-
-    // Filter by search term  
-    const formTitle = form.name || form.title || 'Untitled Form';
-    const searchMatch = !searchTerm || 
-      formTitle.toLowerCase().includes(searchTerm.toLowerCase());
-
-    // Filter by status
-    const statusMatch = statusFilter === 'all' || form.status === statusFilter;
-
-    // Filter by date
-    let dateMatch = true;
-    if (dateFilter !== 'all') {
-      const formDate = new Date(form.updatedAt);
-      const now = new Date();
-      const daysDiff = Math.floor((now - formDate) / (1000 * 60 * 60 * 24));
-      
-      switch (dateFilter) {
-        case 'today':
-          dateMatch = daysDiff === 0;
-          break;
-        case 'week':
-          dateMatch = daysDiff <= 7;
-          break;
-        case 'month':
-          dateMatch = daysDiff <= 30;
-          break;
+  // Load counts for all tabs on mount
+  useEffect(() => {
+    const loadAllCounts = async () => {
+      try {
+        const locations = ['inbox', 'archive', 'trash'];
+        const counts = {};
+        
+        for (const location of locations) {
+          const response = await formAPI.getAllForms({ 
+            page: 1, 
+            limit: 1, 
+            location 
+          });
+          counts[location] = response.data?.pagination?.totalCount || 0;
+        }
+        
+        setTabCounts(counts);
+      } catch (error) {
+        console.error('Failed to load tab counts:', error);
       }
-    }
-
-    // Filter by response count
-    let responseMatch = true;
-    if (responseFilter !== 'all') {
-      const responseCount = form.responses?.length || 0;
-      switch (responseFilter) {
-        case 'none':
-          responseMatch = responseCount === 0;
-          break;
-        case 'low':
-          responseMatch = responseCount > 0 && responseCount <= 10;
-          break;
-        case 'medium':
-          responseMatch = responseCount > 10 && responseCount <= 50;
-          break;
-        case 'high':
-          responseMatch = responseCount > 50;
-          break;
-      }
-    }
-
-    return tabMatch && searchMatch && statusMatch && dateMatch && responseMatch;
-  }).sort((a, b) => {
-    let aValue, bValue;
+    };
     
-    switch (sortBy) {
-      case 'name':
-        aValue = (a.name || a.title || 'Untitled Form').toLowerCase();
-        bValue = (b.name || b.title || 'Untitled Form').toLowerCase();
-        break;
-      case 'responses':
-        aValue = a.responses?.length || 0;
-        bValue = b.responses?.length || 0;
-        break;
-      case 'createdAt':
-        aValue = new Date(a.createdAt);
-        bValue = new Date(b.createdAt);
-        break;
-      case 'status':
-        aValue = a.status;
-        bValue = b.status;
-        break;
-      case 'updatedAt':
-      default:
-        aValue = new Date(a.updatedAt);
-        bValue = new Date(b.updatedAt);
-        break;
-    }
+    loadAllCounts();
+  }, []); // Run once on mount
 
-    if (sortOrder === 'asc') {
-      return aValue > bValue ? 1 : -1;
-    } else {
-      return aValue < bValue ? 1 : -1;
+  // Load forms from backend when filters/page changes
+  useEffect(() => {
+    const params = {
+      page: pagination.currentPage,
+      limit: 8,
+      status: statusFilter === 'all' ? undefined : statusFilter,
+      search: searchTerm || undefined,
+      sortBy: sortBy,
+      sortOrder: sortOrder,
+      location: activeTab // Add location filter for inbox/archive/trash
+    };
+
+    // Remove undefined params
+    Object.keys(params).forEach(key => 
+      params[key] === undefined && delete params[key]
+    );
+
+    loadForms(params);
+  }, [pagination.currentPage, statusFilter, searchTerm, sortBy, sortOrder, activeTab, loadForms]);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    if (pagination.currentPage !== 1) {
+      loadForms({
+        page: 1,
+        limit: 8,
+        status: statusFilter === 'all' ? undefined : statusFilter,
+        search: searchTerm || undefined,
+        sortBy: sortBy,
+        sortOrder: sortOrder,
+        location: activeTab
+      });
     }
-  });
+  }, [searchTerm, statusFilter, activeTab, sortBy, sortOrder]);
 
   const handleMenuAction = (action, formId) => {
     setShowMenu(null);
@@ -172,23 +141,59 @@ const MyForms = () => {
       case 'trash':
         moveFormToTrash(formId);
         setShowSuccessModal({ type: 'trash', message: 'Form moved to trash successfully!' });
+        // Update counts: decrease inbox, increase trash
+        setTabCounts(prev => ({
+          ...prev,
+          inbox: Math.max(0, prev.inbox - 1),
+          trash: prev.trash + 1
+        }));
         break;
       case 'archive':
         moveFormToArchive(formId);
         setShowSuccessModal({ type: 'archive', message: 'Form archived successfully!' });
+        // Update counts: decrease inbox, increase archive
+        setTabCounts(prev => ({
+          ...prev,
+          inbox: Math.max(0, prev.inbox - 1),
+          archive: prev.archive + 1
+        }));
         break;
       case 'restore':
         restoreForm(formId);
         setShowSuccessModal({ type: 'restore', message: 'Form restored successfully!' });
+        // Update counts: increase inbox, decrease current tab
+        setTabCounts(prev => ({
+          ...prev,
+          inbox: prev.inbox + 1,
+          [activeTab]: Math.max(0, prev[activeTab] - 1)
+        }));
         break;
       case 'delete':
         deleteForm(formId);
         setShowSuccessModal({ type: 'delete', message: 'Form deleted permanently!' });
+        // Update counts: decrease trash
+        setTabCounts(prev => ({
+          ...prev,
+          trash: Math.max(0, prev.trash - 1)
+        }));
         break;
     }
     
     setShowConfirmModal(null);
     setTimeout(() => setShowSuccessModal(null), 3000);
+    
+    // Reload current page to show updated forms
+    setTimeout(() => {
+      loadForms({
+        page: pagination.currentPage,
+        limit: 8,
+        status: statusFilter === 'all' ? undefined : statusFilter,
+        search: searchTerm || undefined,
+        sortBy: sortBy,
+        sortOrder: sortOrder,
+        location: activeTab
+      });
+    }, 500);
   };
 
   const handleSelectForm = (formId) => {
@@ -203,16 +208,16 @@ const MyForms = () => {
   };
 
   const handleSelectAll = () => {
-    if (selectedForms.size === filteredForms.length) {
+    if (selectedForms.size === forms.length) {
       setSelectedForms(new Set());
       setShowBulkActions(false);
     } else {
-      setSelectedForms(new Set(filteredForms.map(f => f.id)));
+      setSelectedForms(new Set(forms.map(f => f.id)));
       setShowBulkActions(true);
     }
   };
 
-  const handleBulkAction = (action) => {
+  const handleBulkAction = async (action) => {
     if (selectedForms.size === 0) return;
     
     const actionText = action === 'trash' ? 'move to trash' : 
@@ -226,6 +231,9 @@ const MyForms = () => {
       return;
     }
     
+    const count = selectedForms.size;
+    
+    // Execute bulk action
     selectedForms.forEach(formId => {
       switch (action) {
         case 'trash':
@@ -243,13 +251,57 @@ const MyForms = () => {
       }
     });
     
+    // Update tab counts based on action
+    switch (action) {
+      case 'trash':
+        setTabCounts(prev => ({
+          ...prev,
+          inbox: Math.max(0, prev.inbox - count),
+          trash: prev.trash + count
+        }));
+        break;
+      case 'archive':
+        setTabCounts(prev => ({
+          ...prev,
+          inbox: Math.max(0, prev.inbox - count),
+          archive: prev.archive + count
+        }));
+        break;
+      case 'restore':
+        setTabCounts(prev => ({
+          ...prev,
+          inbox: prev.inbox + count,
+          [activeTab]: Math.max(0, prev[activeTab] - count)
+        }));
+        break;
+      case 'delete':
+        setTabCounts(prev => ({
+          ...prev,
+          trash: Math.max(0, prev.trash - count)
+        }));
+        break;
+    }
+    
     setSelectedForms(new Set());
     setShowBulkActions(false);
     
     // Show success message
-    const successMessage = `${selectedForms.size} form${selectedForms.size > 1 ? 's' : ''} ${actionText === 'move to trash' ? 'moved to trash' : actionText === 'archive' ? 'archived' : actionText === 'restore' ? 'restored' : 'deleted'} successfully!`;
+    const successMessage = `${count} form${count > 1 ? 's' : ''} ${actionText === 'move to trash' ? 'moved to trash' : actionText === 'archive' ? 'archived' : actionText === 'restore' ? 'restored' : 'deleted'} successfully!`;
     setShowSuccessModal({ type: action, message: successMessage });
     setTimeout(() => setShowSuccessModal(null), 3000);
+    
+    // Reload current page to show next forms
+    setTimeout(() => {
+      loadForms({
+        page: pagination.currentPage,
+        limit: 8,
+        status: statusFilter === 'all' ? undefined : statusFilter,
+        search: searchTerm || undefined,
+        sortBy: sortBy,
+        sortOrder: sortOrder,
+        location: activeTab
+      });
+    }, 500); // Small delay to ensure backend has processed the changes
   };
 
   const getConfirmMessage = () => {
@@ -270,9 +322,9 @@ const MyForms = () => {
   };
 
   const tabs = [
-    { id: 'inbox', name: 'Inbox', count: forms.filter(f => f.location === 'inbox').length },
-    { id: 'archive', name: 'Archive', count: forms.filter(f => f.location === 'archive').length },
-    { id: 'trash', name: 'Trash', count: forms.filter(f => f.location === 'trash').length }
+    { id: 'inbox', name: 'Inbox', count: tabCounts.inbox },
+    { id: 'archive', name: 'Archive', count: tabCounts.archive },
+    { id: 'trash', name: 'Trash', count: tabCounts.trash }
   ];
 
   const getFormStats = (form) => {
@@ -338,7 +390,7 @@ const MyForms = () => {
           {/* Advanced Filters */}
           {showAdvancedFilters && (
             <div className="mt-4 pt-4 border-t border-gray-200">
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
                   <select
@@ -351,40 +403,9 @@ const MyForms = () => {
                     <option value="published">Published</option>
                   </select>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Last Updated</label>
-                  <select
-                    value={dateFilter}
-                    onChange={(e) => setDateFilter(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                  >
-                    <option value="all">All Time</option>
-                    <option value="today">Today</option>
-                    <option value="week">This Week</option>
-                    <option value="month">This Month</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Response Count</label>
-                  <select
-                    value={responseFilter}
-                    onChange={(e) => setResponseFilter(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                  >
-                    <option value="all">All Forms</option>
-                    <option value="none">No Responses</option>
-                    <option value="low">1-10 Responses</option>
-                    <option value="medium">11-50 Responses</option>
-                    <option value="high">50+ Responses</option>
-                  </select>
-                </div>
                 <div className="flex items-end">
                   <button
-                    onClick={() => {
-                      setStatusFilter('all');
-                      setDateFilter('all');
-                      setResponseFilter('all');
-                    }}
+                    onClick={() => setStatusFilter('all')}
                     className="w-full px-3 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
                   >
                     Clear Filters
@@ -498,7 +519,14 @@ const MyForms = () => {
 
           {/* Forms Grid */}
           <div className="p-6">
-            {filteredForms.length === 0 ? (
+            {isLoadingForms ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
+                  <p className="text-gray-600">Loading forms...</p>
+                </div>
+              </div>
+            ) : forms.length === 0 ? (
               <div className="text-center py-12">
                 <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">
@@ -524,27 +552,27 @@ const MyForms = () => {
             ) : (
               <>
                 {/* Select All */}
-                {filteredForms.length > 0 && (
+                {forms.length > 0 && (
                   <div className="flex items-center justify-between mb-4 pb-4 border-b border-gray-200">
                     <button
                       onClick={handleSelectAll}
                       className="flex items-center space-x-2 text-sm text-gray-600 hover:text-gray-800"
                     >
-                      {selectedForms.size === filteredForms.length ? (
+                      {selectedForms.size === forms.length ? (
                         <CheckSquare className="w-4 h-4" />
                       ) : (
                         <Square className="w-4 h-4" />
                       )}
-                      <span>Select All ({filteredForms.length})</span>
+                      <span>Select All ({forms.length})</span>
                     </button>
                     <div className="text-sm text-gray-500">
-                      Showing {filteredForms.length} of {forms.filter(f => f.location === activeTab).length} forms
+                      Showing {((pagination.currentPage - 1) * pagination.limit) + 1}-{Math.min(pagination.currentPage * pagination.limit, pagination.totalCount)} of {pagination.totalCount} forms
                     </div>
                   </div>
                 )}
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {filteredForms.map((form) => {
+                  {forms.map((form) => {
                     const stats = getFormStats(form);
                     return (
                       <div
@@ -708,6 +736,100 @@ const MyForms = () => {
                     );
                   })}
                 </div>
+
+                {/* Pagination Controls */}
+                {pagination.totalPages > 1 && (
+                  <div className="mt-8 flex items-center justify-center space-x-2">
+                    {/* Previous Button */}
+                    <button
+                      onClick={() => loadForms({
+                        page: pagination.currentPage - 1,
+                        limit: 8,
+                        status: statusFilter === 'all' ? undefined : statusFilter,
+                        search: searchTerm || undefined,
+                        sortBy: sortBy,
+                        sortOrder: sortOrder,
+                        location: activeTab
+                      })}
+                      disabled={!pagination.hasPreviousPage}
+                      className={`px-4 py-2 rounded-lg border transition-colors ${
+                        !pagination.hasPreviousPage
+                          ? 'border-gray-200 text-gray-400 cursor-not-allowed'
+                          : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      Previous
+                    </button>
+
+                    {/* Page Numbers */}
+                    <div className="flex items-center space-x-1">
+                      {Array.from({ length: pagination.totalPages }, (_, i) => i + 1).map((pageNum) => {
+                        // Show first page, last page, current page, and pages around current
+                        const showPage = 
+                          pageNum === 1 ||
+                          pageNum === pagination.totalPages ||
+                          (pageNum >= pagination.currentPage - 1 && pageNum <= pagination.currentPage + 1);
+
+                        // Show ellipsis
+                        const showEllipsisBefore = pageNum === pagination.currentPage - 2 && pagination.currentPage > 3;
+                        const showEllipsisAfter = pageNum === pagination.currentPage + 2 && pagination.currentPage < pagination.totalPages - 2;
+
+                        if (showEllipsisBefore || showEllipsisAfter) {
+                          return (
+                            <span key={pageNum} className="px-2 text-gray-400">
+                              ...
+                            </span>
+                          );
+                        }
+
+                        if (!showPage) return null;
+
+                        return (
+                          <button
+                            key={pageNum}
+                            onClick={() => loadForms({
+                              page: pageNum,
+                              limit: 8,
+                              status: statusFilter === 'all' ? undefined : statusFilter,
+                              search: searchTerm || undefined,
+                              sortBy: sortBy,
+                              sortOrder: sortOrder,
+                              location: activeTab
+                            })}
+                            className={`min-w-[40px] px-3 py-2 rounded-lg border transition-colors ${
+                              pagination.currentPage === pageNum
+                                ? 'bg-purple-600 text-white border-purple-600'
+                                : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                            }`}
+                          >
+                            {pageNum}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Next Button */}
+                    <button
+                      onClick={() => loadForms({
+                        page: pagination.currentPage + 1,
+                        limit: 8,
+                        status: statusFilter === 'all' ? undefined : statusFilter,
+                        search: searchTerm || undefined,
+                        sortBy: sortBy,
+                        sortOrder: sortOrder,
+                        location: activeTab
+                      })}
+                      disabled={!pagination.hasNextPage}
+                      className={`px-4 py-2 rounded-lg border transition-colors ${
+                        !pagination.hasNextPage
+                          ? 'border-gray-200 text-gray-400 cursor-not-allowed'
+                          : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      Next
+                    </button>
+                  </div>
+                )}
               </>
             )}
           </div>

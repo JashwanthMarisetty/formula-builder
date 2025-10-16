@@ -20,6 +20,14 @@ export const FormProvider = ({ children }) => {
   const [forms, setForms] = useState([]);
   const [currentForm, setCurrentForm] = useState(null);
   const [isLoadingForms, setIsLoadingForms] = useState(false);
+  const [pagination, setPagination] = useState({
+    currentPage: 1,
+    totalPages: 1,
+    totalCount: 0,
+    limit: 8,
+    hasNextPage: false,
+    hasPreviousPage: false
+  });
   const [chatbotSettings, setChatbotSettings] = useState({
     enabled: false,
     welcomeMessage: 'Hi! How can I help you today?',
@@ -28,7 +36,7 @@ export const FormProvider = ({ children }) => {
   });
 
   // Load forms from backend API
-  const loadForms = useCallback(async () => {
+  const loadForms = useCallback(async (params = {}) => {
     const token = localStorage.getItem('formula_token');
     
     if (!token) {
@@ -38,7 +46,7 @@ export const FormProvider = ({ children }) => {
 
     try {
       setIsLoadingForms(true);
-      const response = await formAPI.getAllForms();
+      const response = await formAPI.getAllForms(params);
       
       if (response.success) {
         // Transform backend form structure to match frontend structure
@@ -78,6 +86,11 @@ export const FormProvider = ({ children }) => {
         });
         
         setForms(transformedForms);
+        
+        // Update pagination metadata
+        if (response.data?.pagination) {
+          setPagination(response.data.pagination);
+        }
       }
     } catch (error) {
       console.error('Failed to load forms:', error);
@@ -467,6 +480,7 @@ export const FormProvider = ({ children }) => {
     chatbotSettings,
     setChatbotSettings,
     isLoadingForms,
+    pagination,
     loadForms,
     createForm,
     updateForm,
@@ -485,6 +499,7 @@ export const FormProvider = ({ children }) => {
     chatbotSettings,
     setChatbotSettings,
     isLoadingForms,
+    pagination,
     loadForms,
     createForm,
     updateForm,

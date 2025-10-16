@@ -35,10 +35,19 @@ const FieldPalette = ({ onAddField }) => {
     { type: 'address', name: 'Address', icon: MapPin, description: 'Full address input' }
   ];
 
-  const filteredFields = fieldTypes.filter(field =>
-    field.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    field.description.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredFields = [];
+
+  for (let i = 0; i < fieldTypes.length; i++) {
+    const field = fieldTypes[i];
+
+    const nameLower = field.name ? field.name.toLowerCase() : "";
+    const descLower = field.description ? field.description.toLowerCase() : "";
+    const searchLower = searchTerm ? searchTerm.toLowerCase() : "";
+
+    if (nameLower.includes(searchLower) || descLower.includes(searchLower)) {
+      filteredFields.push(field);
+    }
+  }
 
   const handleAddField = (fieldType) => {
     const baseField = {

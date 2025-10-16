@@ -42,9 +42,9 @@ const createForm = async (req, res) => {
 
       for (const page of pages) {
         if (Array.isArray(page.fields)) {
-         for (const field of page.fields) {
-           allFields.push(field);
-         }
+          for (const field of page.fields) {
+            allFields.push(field);
+          }
         }
       }
 
@@ -104,6 +104,7 @@ const getAllForms = async (req, res) => {
       search = "", // Default empty search
       sortBy = "updatedAt", // Default sort by last updated
       sortOrder = "desc", // Default newest first
+      location = "inbox", // Default to inbox (can be inbox, archive, trash)
     } = req.query;
 
     // Convert page and limit to numbers
@@ -115,6 +116,11 @@ const getAllForms = async (req, res) => {
     let query = {
       createdBy: req.user.id, // Only get forms created by this user
     };
+
+    // Add location filter (inbox, archive, trash)
+    if (location) {
+      query.location = location;
+    }
 
     // Add status filter if not 'all'
     if (status !== "all") {
@@ -145,6 +151,8 @@ const getAllForms = async (req, res) => {
 
       Form.countDocuments(query), // Get total count for pagination
     ]);
+
+    // const totalCount = await Form.countDocuments(query);
 
     // Calculate pagination metadata
     const totalPages = Math.ceil(totalCount / limitNumber);
@@ -183,6 +191,7 @@ const getAllForms = async (req, res) => {
           search: search,
           sortBy,
           sortOrder,
+          location: location,
         },
       },
     });
@@ -346,25 +355,14 @@ const updateForm = async (req, res) => {
     const { id } = req.params;
     const updateData = req.body;
 
-    // Clean up data that shouldn't be updated
-    delete updateData._id;
-    delete updateData.createdBy;
-    delete updateData.createdAt;
+    const allFields = [];
 
-    // Handle pages structure - update both pages and fields
-    if (updateData.pages) {
-      // If pages are provided, also update the flat fields array for backwards compatibility
-      updateData.fields = updateData.pages.flatMap((page) => page.fields || []);
-    } else if (updateData.fields) {
-      // If only fields provided, convert to pages structure
-      updateData.pages = [
-        {
-          id: "page-1",
-          name: "Page 1",
-          fields: updateData.fields,
-        },
-      ];
+    for (const page of updateData.pages) {
+      const pageFields = page.fields ||[];
+      allFields.push(...pageFields);
     }
+
+    updateData.fields = allFields;
 
     // Check if form exists and user owns it
     const form = await Form.findById(id);
