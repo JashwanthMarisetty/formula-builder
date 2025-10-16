@@ -5,6 +5,7 @@ const crypto = require("crypto");
 const { auth } = require("../middleware/auth");
 const { validationResult } = require("express-validator");
 const { generateToken, verifyRefreshToken, generateRefreshToken } = require("../utils/jwt");
+const { sendEmail } = require("../utils/sendEmail");
 
 // Register a new user
 const register = async (req, res) => {
@@ -30,6 +31,23 @@ const register = async (req, res) => {
     });
 
     await user.save();
+
+    // ✅ Send Welcome Email
+    const subject = "Welcome to Formula 🎉";
+    const text = `Hi ${name}, welcome to Formula! Your account has been created successfully.`;
+    const html = `
+      <div style="font-family:sans-serif;">
+        <h2>Welcome to Formula, ${name}!</h2>
+        <p>You've successfully registered your account.</p>
+        <p>Start building and sharing your forms 🚀</p>
+        <p>— The Formula Team</p>
+      </div>
+    `;
+
+    // Send email asynchronously (won’t block API response)
+    sendEmail(email, subject, text, html).catch((err) =>
+      console.error("Error sending email:", err)
+    );
 
     const userResponse = {
       id: user._id,
@@ -69,7 +87,7 @@ const login = async (req, res) => {
 
     const token = generateToken(user._id);
     const refreshToken = generateRefreshToken(user._id); // Refresh token valid for 30 days
-    
+
     const userResponse = {
       id: user._id,
       name: user.name,
@@ -90,7 +108,6 @@ const login = async (req, res) => {
   }
 };
 
-
 const refreshToken = async (req, res) => {
   try {
     const { refreshToken } = req.body;
@@ -106,7 +123,7 @@ const refreshToken = async (req, res) => {
       return res.status(401).json({ message: "Invalid refresh token" });
     }
 
-    const newToken = generateToken(user._id); 
+    const newToken = generateToken(user._id);
     const newRefreshToken = generateRefreshToken(user._id);
 
     res.json({
@@ -144,7 +161,8 @@ const forgotPassword = async (req, res) => {
     // For now, just return the token (in production, this should be sent via email)
     res.json({
       success: true,
-      message: "Password reset token generated. Check console for token (implement email service)",
+      message:
+        "Password reset token generated.",
       resetToken: resetToken, // Remove this in production
     });
   } catch (error) {
@@ -217,9 +235,10 @@ const googleSignIn = async (req, res) => {
 
     // Validate required fields
     if (!firebaseUid || !email || !name) {
-      return res.status(400).json({ 
-        success: false, 
-        message: "Missing required fields: firebaseUid, email, and name are required" 
+      return res.status(400).json({
+        success: false,
+        message:
+          "Missing required fields: firebaseUid, email, and name are required",
       });
     }
 
@@ -232,17 +251,45 @@ const googleSignIn = async (req, res) => {
         firebaseUid,
         email,
         name,
-        avatar: photoURL || 'https://images.pexels.com/photos/91227/pexels-photo-91227.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
-        provider: 'google',
-        password: 'google-oauth', // Password not needed for Google Sign-In
-        emailVerified: true // Google users have verified emails
+        avatar:
+          photoURL ||
+          "https://images.pexels.com/photos/91227/pexels-photo-91227.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1",
+        provider: "google",
+        password: "google-oauth", // Password not needed for Google Sign-In
+        emailVerified: true, // Google users have verified emails
       });
       await user.save();
+
+      // Send welcome email to new Google user
+      const subject = "Welcome to Formula 🎉";
+      const text = `Hi ${name}, welcome to Formula! Your account has been created successfully via Google Sign-In.`;
+      const html = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9fafb;">
+          <div style="background-color: white; border-radius: 10px; padding: 30px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+            <h2 style="color: #7c3aed; margin-bottom: 20px;">Welcome to Formula, ${name}!</h2>
+            <p style="color: #374151; font-size: 16px; line-height: 1.6;">
+              You've successfully registered your account via Google Sign-In.
+            </p>
+            <p style="color: #374151; font-size: 16px; line-height: 1.6;">
+              Start building and sharing your forms 🚀
+            </p>
+            <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+              <p style="color: #6b7280; font-size: 14px; margin: 0;">
+                — The Formula Team
+              </p>
+            </div>
+          </div>
+        </div>
+      `;
+
+      // Send email asynchronously (won't block API response)
+      sendEmail(email, subject, text, html).catch((err) =>
+        console.error("Error sending welcome email to Google user:", err.message)
+      );
     }
 
     // Generate tokens for the user
     const token = generateToken(user._id);
-    console.log("Generated JWT token:", token);
     const refreshToken = generateRefreshToken(user._id);
 
     res.json({
@@ -252,19 +299,27 @@ const googleSignIn = async (req, res) => {
         id: user._id,
         name: user.name,
         email: user.email,
-        avatar: user.avatar
+        avatar: user.avatar,
       },
       token,
       refreshToken,
     });
   } catch (error) {
     console.error("Google Sign-In error:", error);
-    res.status(500).json({ 
-      success: false, 
-      message: "Google Sign-In failed", 
-      error: error.message 
+    res.status(500).json({
+      success: false,
+      message: "Google Sign-In failed",
+      error: error.message,
     });
   }
 };
 
-module.exports = { register , login , refreshToken , forgotPassword , resetPassword , getMe, googleSignIn };
+module.exports = {
+  register,
+  login,
+  refreshToken,
+  forgotPassword,
+  resetPassword,
+  getMe,
+  googleSignIn,
+};
