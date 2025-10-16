@@ -61,13 +61,8 @@ function App() {
                   <ActivityLogs />
                 </ProtectedRoute>
               } />
-              <Route path="/form/:formId" element={
-                <ProtectedRoute>
-                  <FormBuilder />
-                </ProtectedRoute>
-              } />
               {/* Public form filling route - no authentication required */}
-              <Route path="/fill/:formId" element={<PublicForm />} />
+              <Route path="/form/:formId" element={<PublicForm />} />
             </Routes>
           </div>
         </Router>

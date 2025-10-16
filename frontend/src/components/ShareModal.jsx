@@ -16,7 +16,7 @@ const ShareModal = ({ form, onClose }) => {
   const [copied, setCopied] = useState(false);
   const [visibility, setVisibility] = useState('public');
 
-  const formUrl = `${window.location.origin}/form/${form.id}`;
+  const formUrl = `${window.location.origin}/form/${form.id || form._id}`;
   const embedCode = `<iframe src="${formUrl}" width="100%" height="600" frameborder="0"></iframe>`;
 
   const handleCopyLink = async () => {

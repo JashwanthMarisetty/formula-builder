@@ -162,8 +162,18 @@ const formSchema = new mongoose.Schema(
           type: String,
           default: "",
         },
+        respondentEmail: {
+          type: String,
+          default: "",
+        },
       },
     ],
+
+    // Email confirmation settings
+    collectRespondentEmail: {
+      type: Boolean,
+      default: true,
+    },
 
     // Analytics fields
     views: {

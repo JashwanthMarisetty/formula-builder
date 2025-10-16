@@ -1,5 +1,6 @@
 const Form = require("../models/Form");
 const { validationResult } = require("express-validator");
+const { sendEmail } = require("../utils/sendEmail");
 
 // CREATE - Create a new form
 const createForm = async (req, res) => {
@@ -493,6 +494,7 @@ const submitFormResponse = async (req, res) => {
 
     // Extract data from request body (handle both direct data and nested data structure)
     const responseData = requestBody.data || requestBody;
+    const respondentEmail = requestBody.respondentEmail || "";
 
     // Find form
     const form = await Form.findById(id);
@@ -510,6 +512,17 @@ const submitFormResponse = async (req, res) => {
         success: false,
         message: "Form is not available for submissions",
       });
+    }
+
+    // Validate respondent email if form requires it
+    if (form.collectRespondentEmail && respondentEmail) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(respondentEmail)) {
+        return res.status(400).json({
+          success: false,
+          message: "Please provide a valid email address",
+        });
+      }
     }
 
     // Basic validation - check required fields
@@ -538,11 +551,39 @@ const submitFormResponse = async (req, res) => {
         : new Date(),
       data: responseData,
       submitterIP: req.ip || req.connection.remoteAddress || "unknown",
+      respondentEmail: respondentEmail,
     };
 
     // Add response to form
     form.responses.push(newResponse);
     await form.save();
+
+    // Send confirmation email if email was provided (email collection is enabled by default)
+    if (respondentEmail) {
+      const subject = `Form Submission Confirmation - ${form.title}`;
+      const text ="Thank you for your submission! We have received your response.";
+      const html = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9fafb;">
+          <div style="background-color: white; border-radius: 10px; padding: 30px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+            <h2 style="color: #7c3aed; margin-bottom: 20px;">${form.title}</h2>
+            <p style="color: #374151; font-size: 16px; line-height: 1.6;">
+              "Thank you for your submission! We have received your response."}
+            </p>
+            <div style="background-color: #f3f4f6; border-radius: 8px; padding: 20px; margin: 20px 0;">
+              <p style="color: #6b7280; font-size: 14px; margin: 0;">
+                <strong>Submission ID:</strong> ${newResponse.id}<br>
+                <strong>Submitted at:</strong> ${new Date(newResponse.submittedAt).toLocaleString()}
+              </p>
+            </div>
+          </div>
+        </div>
+      `;
+
+      // Send email asynchronously (won't block response)
+      sendEmail(respondentEmail, subject, text, html).catch((err) =>
+        console.error("Error sending confirmation email to respondent:", err.message)
+      );
+    }
 
     res.status(201).json({
       success: true,
@@ -550,6 +591,7 @@ const submitFormResponse = async (req, res) => {
       data: {
         responseId: newResponse.id,
         submittedAt: newResponse.submittedAt,
+        emailSent: form.collectRespondentEmail && respondentEmail ? true : false,
       },
     });
   } catch (error) {
@@ -577,7 +619,7 @@ const getPublicForm = async (req, res) => {
     const { id } = req.params;
 
     const form = await Form.findById(id)
-      .select("title fields status views pages createdAt updatedAt")
+      .select("title fields status views pages createdAt updatedAt collectRespondentEmail")
       .lean();
 
     if (!form) {

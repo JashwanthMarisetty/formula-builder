@@ -15,6 +15,7 @@ const PublicForm = () => {
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [respondentEmail, setRespondentEmail] = useState('');
 
   // Load the public form
   useEffect(() => {
@@ -165,13 +166,29 @@ const PublicForm = () => {
   };
 
   const handleSubmit = async () => {
-    if (!validateCurrentPage()) return;
+    // Validate current page fields
+    if (!validateCurrentPage()) {
+      return;
+    }
+
+    // Validate email - always required
+    if (!respondentEmail || respondentEmail.trim() === '') {
+      alert('Please enter your email address to receive a confirmation');
+      return;
+    }
+    
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(respondentEmail.trim())) {
+      alert('Please enter a valid email address');
+      return;
+    }
 
     setIsSubmitting(true);
     try {
       const result = await formAPI.submitFormResponse(formId, {
         data: formData,
-        submittedAt: new Date().toISOString()
+        submittedAt: new Date().toISOString(),
+        respondentEmail: respondentEmail.trim()
       });
 
       if (result.success) {
@@ -584,6 +601,26 @@ const PublicForm = () => {
           <div>
             {currentPageData.fields.map((field) => renderField(field))}
           </div>
+
+          {/* Required Email Field for Confirmation (always shown on last page) */}
+          {isLastPage && (
+            <div className="mb-6 p-4 bg-purple-50 border border-purple-200 rounded-lg">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                📧 Email <span className="text-red-500">*</span>
+              </label>
+              <p className="text-xs text-gray-600 mb-3">
+                This is only for sending you a confirmation that you successfully filled the form.
+              </p>
+              <input
+                type="email"
+                value={respondentEmail}
+                onChange={(e) => setRespondentEmail(e.target.value)}
+                placeholder="your.email@example.com"
+                required
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              />
+            </div>
+          )}
 
           {/* Navigation Buttons */}
           <div className="flex justify-between pt-6 border-t border-gray-200">
