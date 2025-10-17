@@ -4,8 +4,13 @@ const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const { auth } = require("../middleware/auth");
 const { validationResult } = require("express-validator");
-const { generateToken, verifyRefreshToken, generateRefreshToken } = require("../utils/jwt");
+const {
+  generateToken,
+  verifyRefreshToken,
+  generateRefreshToken,
+} = require("../utils/jwt");
 const { sendEmail } = require("../utils/sendEmail");
+const { enqueueEmail } = require("../utils/enqueueEmail");
 
 // Register a new user
 const register = async (req, res) => {
@@ -44,10 +49,7 @@ const register = async (req, res) => {
       </div>
     `;
 
-    // Send email asynchronously (won’t block API response)
-    sendEmail(email, subject, text, html).catch((err) =>
-      console.error("Error sending email:", err)
-    );
+    enqueueEmail({ email, subject, text, html });
 
     const userResponse = {
       id: user._id,
@@ -161,8 +163,7 @@ const forgotPassword = async (req, res) => {
     // For now, just return the token (in production, this should be sent via email)
     res.json({
       success: true,
-      message:
-        "Password reset token generated.",
+      message: "Password reset token generated.",
       resetToken: resetToken, // Remove this in production
     });
   } catch (error) {
@@ -282,10 +283,7 @@ const googleSignIn = async (req, res) => {
         </div>
       `;
 
-      // Send email asynchronously (won't block API response)
-      sendEmail(email, subject, text, html).catch((err) =>
-        console.error("Error sending welcome email to Google user:", err.message)
-      );
+      enqueueEmail({ email, subject, text, html });
     }
 
     // Generate tokens for the user

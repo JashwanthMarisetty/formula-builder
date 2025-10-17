@@ -1,14 +1,15 @@
 const express = require("express");
 const bodyParser = require("body-parser");
 const cors = require("cors");
+
 // Load environment variables
 // Try .env.local first (for development), then fall back to .env
 const fs = require('fs');
 if (fs.existsSync('.env.local')) {
   require("dotenv").config({ path: '.env.local' });
-} else {
-  require("dotenv").config();
 }
+
+const { connectQueue } = require("./config/rabbitmq");
 
 const connectDB = require("./config/database");
 const userRoutes = require("./routes/userRoutes");
@@ -17,6 +18,8 @@ const formRoutes = require("./routes/formRoutes");
 const app = express();
 
 connectDB();
+
+connectQueue();
 
 app.use(cors({
   origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
