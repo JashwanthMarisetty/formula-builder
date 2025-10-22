@@ -30,7 +30,6 @@ const createForm = async (req, res) => {
     let formData = {
       title: title.trim(),
       createdBy: req.user.id,
-      status: "draft",
       location: "inbox",
       responses: [],
     };
@@ -101,7 +100,6 @@ const getAllForms = async (req, res) => {
     const {
       page = 1, // Default to first page
       limit = 10, // Default 10 forms per page
-      status = "all", // Default to show all statuses
       search = "", // Default empty search
       sortBy = "updatedAt", // Default sort by last updated
       sortOrder = "desc", // Default newest first
@@ -123,11 +121,6 @@ const getAllForms = async (req, res) => {
       query.location = location;
     }
 
-    // Add status filter if not 'all'
-    if (status !== "all") {
-      query.status = status;
-    }
-
     // Add search functionality (searches in title)
     if (search.trim()) {
       query.title = {
@@ -138,7 +131,11 @@ const getAllForms = async (req, res) => {
 
     // Build sort object
     const sortObject = {};
-    sortObject[sortBy] = sortOrder === "asc" ? 1 : -1;
+    if (sortOrder === "asc") {
+      sortObject[sortBy] = 1; // ascending order
+    } else {
+      sortObject[sortBy] = -1; // descending order
+    }
 
     // Execute the query with pagination
     const [forms, totalCount] = await Promise.all([
@@ -157,28 +154,32 @@ const getAllForms = async (req, res) => {
 
     // Calculate pagination metadata
     const totalPages = Math.ceil(totalCount / limitNumber);
-    const hasNextPage = pageNumber < totalPages;
-    const hasPreviousPage = pageNumber > 1;
 
-    // Transform forms data (add computed fields)
-    const transformedForms = forms.map((form) => ({
-      ...form,
-      responseCount: form.responses ? form.responses.length : 0,
-      lastResponseAt:
-        form.responses && form.responses.length > 0
-          ? new Date(
-              Math.max(...form.responses.map((r) => new Date(r.submittedAt)))
-            )
-          : null,
-      fieldCount: form.fields ? form.fields.length : 0,
-    }));
+    const hasNextPage=true;
+
+    if(pageNumber<totalPages){
+      hasNextPage=true;
+    }
+
+    else hasNextPage=false;
+
+    const hasPreviousPage=true;
+
+    if(pageNumber>1){
+      hasPreviousPage = true;
+    }
+
+    else hasPreviousPage=false;
+    
+    // Forms are already in the correct format from the database
+    // No transformation needed - frontend calculates stats on demand
 
     // Send success response with pagination metadata
     res.status(200).json({
       success: true,
       message: "Forms retrieved successfully",
       data: {
-        forms: transformedForms,
+        forms: forms,
         pagination: {
           currentPage: pageNumber,
           totalPages,
@@ -186,13 +187,6 @@ const getAllForms = async (req, res) => {
           limit: limitNumber,
           hasNextPage,
           hasPreviousPage,
-        },
-        filters: {
-          status: status,
-          search: search,
-          sortBy,
-          sortOrder,
-          location: location,
         },
       },
     });
@@ -245,67 +239,7 @@ const getFormById = async (req, res) => {
       });
     }
 
-    // Enrich form data with computed fields
-    const enrichedForm = {
-      ...form,
-
-      // Response analytics
-      responseCount: form.responses ? form.responses.length : 0,
-      lastResponseAt:
-        form.responses && form.responses.length > 0
-          ? new Date(
-              Math.max(...form.responses.map((r) => new Date(r.submittedAt)))
-            )
-          : null,
-
-      // Field analytics
-      fieldCount: form.fields ? form.fields.length : 0,
-      requiredFieldCount: form.fields
-        ? form.fields.filter((field) => field.required).length
-        : 0,
-
-      // Form status information
-      isPublished: form.status === "published",
-      isDraft: form.status === "draft",
-      isClosed: form.status === "closed",
-
-      // Time calculations
-      daysSinceCreated: Math.floor(
-        (new Date() - new Date(form.createdAt)) / (1000 * 60 * 60 * 24)
-      ),
-      daysSinceUpdated: Math.floor(
-        (new Date() - new Date(form.updatedAt)) / (1000 * 60 * 60 * 24)
-      ),
-
-      // Response rate calculation (if form is published)
-      responseRate:
-        form.status === "published" && form.views > 0
-          ? (((form.responses?.length || 0) / form.views) * 100).toFixed(2)
-          : null,
-
-      // Field type breakdown
-      fieldTypeBreakdown: form.fields
-        ? form.fields.reduce((acc, field) => {
-            acc[field.type] = (acc[field.type] || 0) + 1;
-            return acc;
-          }, {})
-        : {},
-
-      // Recent responses (last 5)
-      recentResponses: form.responses
-        ? form.responses
-            .sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt))
-            .slice(0, 5)
-            .map((response) => ({
-              id: response.id,
-              submittedAt: response.submittedAt,
-              responsePreview:
-                Object.keys(response.data).length > 0
-                  ? `${Object.keys(response.data).length} fields completed`
-                  : "Empty response",
-            }))
-        : [],
-    };
+    // Return form data - frontend calculates stats as needed
 
     // Track form view (optional analytics)
     // Note: In production, you might want to track this separately
@@ -320,7 +254,7 @@ const getFormById = async (req, res) => {
     res.status(200).json({
       success: true,
       message: "Form retrieved successfully",
-      data: enrichedForm,
+      data: form,
     });
   } catch (error) {
     console.error("Error retrieving form:", error);

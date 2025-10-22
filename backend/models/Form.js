@@ -24,17 +24,6 @@ const formSchema = new mongoose.Schema(
       required: [true, "Form must be created by a user"],
     },
 
-    // Form status - controls whether form accepts responses
-    status: {
-      type: String,
-      enum: {
-        values: ["draft", "published", "closed"],
-        message: "Status must be either draft, published, or closed",
-      },
-      default: "draft",
-      required: true,
-    },
-
     // Multi-page structure for forms
     pages: [
       {
@@ -199,13 +188,10 @@ const formSchema = new mongoose.Schema(
 // 1. Most critical index: Filter by user and sort by update time
 formSchema.index({ createdBy: 1, updatedAt: -1 });
 
-// 2. Status filtering: Filter by user, status and sort by update time  
-formSchema.index({ createdBy: 1, status: 1, updatedAt: -1 });
-
-// 3. Title search: Text search for form titles (replaces slow $regex queries)
+// 2. Title search: Text search for form titles (replaces slow $regex queries)
 formSchema.index({ title: 'text' });
 
-// 4. Location filtering
+// 3. Location filtering
 formSchema.index({ createdBy: 1, location: 1, updatedAt: -1 });
 
 const Form = mongoose.model("Form", formSchema);

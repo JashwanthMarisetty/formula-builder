@@ -53,8 +53,6 @@ const MyForms = () => {
   const [sortOrder, setSortOrder] = useState('desc');
   const [selectedForms, setSelectedForms] = useState(new Set());
   const [showBulkActions, setShowBulkActions] = useState(false);
-  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
-  const [statusFilter, setStatusFilter] = useState('all');
   const [showConfirmModal, setShowConfirmModal] = useState(null);
   const [showSuccessModal, setShowSuccessModal] = useState(null);
 
@@ -88,7 +86,6 @@ const MyForms = () => {
     const params = {
       page: pagination.currentPage,
       limit: 8,
-      status: statusFilter === 'all' ? undefined : statusFilter,
       search: searchTerm || undefined,
       sortBy: sortBy,
       sortOrder: sortOrder,
@@ -101,7 +98,7 @@ const MyForms = () => {
     );
 
     loadForms(params);
-  }, [pagination.currentPage, statusFilter, searchTerm, sortBy, sortOrder, activeTab, loadForms]);
+  }, [pagination.currentPage, searchTerm, sortBy, sortOrder, activeTab, loadForms]);
 
   // Reset to page 1 when filters change
   useEffect(() => {
@@ -109,14 +106,13 @@ const MyForms = () => {
       loadForms({
         page: 1,
         limit: 8,
-        status: statusFilter === 'all' ? undefined : statusFilter,
         search: searchTerm || undefined,
         sortBy: sortBy,
         sortOrder: sortOrder,
         location: activeTab
       });
     }
-  }, [searchTerm, statusFilter, activeTab, sortBy, sortOrder]);
+  }, [searchTerm, activeTab, sortBy, sortOrder]);
 
   const handleMenuAction = (action, formId) => {
     setShowMenu(null);
@@ -187,7 +183,6 @@ const MyForms = () => {
       loadForms({
         page: pagination.currentPage,
         limit: 8,
-        status: statusFilter === 'all' ? undefined : statusFilter,
         search: searchTerm || undefined,
         sortBy: sortBy,
         sortOrder: sortOrder,
@@ -295,7 +290,6 @@ const MyForms = () => {
       loadForms({
         page: pagination.currentPage,
         limit: 8,
-        status: statusFilter === 'all' ? undefined : statusFilter,
         search: searchTerm || undefined,
         sortBy: sortBy,
         sortOrder: sortOrder,
@@ -369,7 +363,6 @@ const MyForms = () => {
                 <option value="createdAt">Date Created</option>
                 <option value="name">Name</option>
                 <option value="responses">Responses</option>
-                <option value="status">Status</option>
               </select>
               <button
                 onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
@@ -377,43 +370,8 @@ const MyForms = () => {
               >
                 {sortOrder === 'asc' ? '↑' : '↓'}
               </button>
-              <button
-                onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-                className="flex items-center space-x-2 px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                <Filter className="w-4 h-4" />
-                <span>Filters</span>
-              </button>
             </div>
           </div>
-
-          {/* Advanced Filters */}
-          {showAdvancedFilters && (
-            <div className="mt-4 pt-4 border-t border-gray-200">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                  <select
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                  >
-                    <option value="all">All Statuses</option>
-                    <option value="draft">Draft</option>
-                    <option value="published">Published</option>
-                  </select>
-                </div>
-                <div className="flex items-end">
-                  <button
-                    onClick={() => setStatusFilter('all')}
-                    className="w-full px-3 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
-                  >
-                    Clear Filters
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Enhanced Bulk Actions */}
@@ -686,18 +644,9 @@ const MyForms = () => {
                           </div>
                         </div>
 
-                        <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
-                          <div className="flex items-center space-x-2">
-                            <Calendar className="w-4 h-4" />
-                            <span>{new Date(form.updatedAt).toLocaleDateString()}</span>
-                          </div>
-                          <span className={`px-2 py-1 rounded-full text-xs ${
-                            form.status === 'published' 
-                              ? 'bg-green-100 text-green-800' 
-                              : 'bg-yellow-100 text-yellow-800'
-                          }`}>
-                            {form.status}
-                          </span>
+                        <div className="flex items-center text-sm text-gray-500 mb-4">
+                          <Calendar className="w-4 h-4 mr-2" />
+                          <span>{new Date(form.updatedAt).toLocaleDateString()}</span>
                         </div>
 
                         {activeTab === 'inbox' && (
@@ -745,7 +694,6 @@ const MyForms = () => {
                       onClick={() => loadForms({
                         page: pagination.currentPage - 1,
                         limit: 8,
-                        status: statusFilter === 'all' ? undefined : statusFilter,
                         search: searchTerm || undefined,
                         sortBy: sortBy,
                         sortOrder: sortOrder,
@@ -790,7 +738,6 @@ const MyForms = () => {
                             onClick={() => loadForms({
                               page: pageNum,
                               limit: 8,
-                              status: statusFilter === 'all' ? undefined : statusFilter,
                               search: searchTerm || undefined,
                               sortBy: sortBy,
                               sortOrder: sortOrder,
@@ -813,7 +760,6 @@ const MyForms = () => {
                       onClick={() => loadForms({
                         page: pagination.currentPage + 1,
                         limit: 8,
-                        status: statusFilter === 'all' ? undefined : statusFilter,
                         search: searchTerm || undefined,
                         sortBy: sortBy,
                         sortOrder: sortOrder,

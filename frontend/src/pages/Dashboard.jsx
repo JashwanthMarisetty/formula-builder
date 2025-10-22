@@ -173,19 +173,10 @@ const Dashboard = () => {
                   key={form.id}
                   className="border border-gray-200 rounded-lg p-4 hover:shadow-md hover:border-purple-300 transition-all group"
                 >
-                  <div className="flex items-center justify-between mb-3">
+                  <div className="mb-3">
                     <h3 className="font-medium text-gray-900 truncate text-sm sm:text-base group-hover:text-purple-600 transition-colors">
                       {form.name || form.title || 'Untitled Form'}
                     </h3>
-                    <span
-                      className={`px-2 py-1 text-xs rounded-full ${
-                        form.status === "published"
-                          ? "bg-green-100 text-green-800"
-                          : "bg-yellow-100 text-yellow-800"
-                      }`}
-                    >
-                      {form.status}
-                    </span>
                   </div>
                   <div className="flex items-center justify-between text-xs sm:text-sm text-gray-500 mb-3">
                     <span>{form.responses?.length || 0} responses</span>

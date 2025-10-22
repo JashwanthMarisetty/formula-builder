@@ -74,7 +74,6 @@ export const FormProvider = ({ children }) => {
             title: form.title || 'Untitled Form', // Handle empty titles
             fields: form.fields || [],
             pages: pages,
-            status: form.status,
             visibility: 'private',
             responses: form.responses || [],
             createdAt: form.createdAt,
@@ -134,8 +133,7 @@ export const FormProvider = ({ children }) => {
       // Create form on backend
       const backendFormData = {
         title: formData.name || formData.title || 'Untitled Form',
-        fields: [],
-        status: 'draft'
+        fields: []
       };
       
       const response = await formAPI.createForm(backendFormData);
@@ -150,7 +148,6 @@ export const FormProvider = ({ children }) => {
           title: formData.title,
           fields: formData.fields || [],
           pages: [{ id: 'page-1', name: 'Page 1', fields: formData.fields || [] }],
-          status: formData.status,
           visibility: 'private',
           responses: formData.responses || [],
           createdAt: formData.createdAt,
@@ -175,7 +172,6 @@ export const FormProvider = ({ children }) => {
         name: formData.name || 'Untitled Form',
         fields: [],
         pages: [{ id: 'page-1', name: 'Page 1', fields: [] }],
-        status: 'draft',
         visibility: 'private',
         responses: [],
         createdAt: new Date().toISOString(),
@@ -216,7 +212,6 @@ export const FormProvider = ({ children }) => {
       // Prepare data for backend with the updated form data
       const backendData = {
         title: updatedFormData.name || updatedFormData.title,
-        status: updatedFormData.status,
         location: updatedFormData.location,
         pages: updatedFormData.pages || [],
         // Also include flat fields for backwards compatibility
@@ -309,7 +304,6 @@ export const FormProvider = ({ children }) => {
     try {
       const backendData = {
         title: updatedFormData.name || updatedFormData.title,
-        status: updatedFormData.status,
         pages: updatedFormData.pages || [],
         fields: updatedFormData.pages ? updatedFormData.pages.flatMap(page => page.fields || []) : []
       };
@@ -379,7 +373,6 @@ export const FormProvider = ({ children }) => {
       if (formToSave) {
         const backendData = {
           title: formToSave.name || formToSave.title,
-          status: formToSave.status,
           pages: formToSave.pages || [],
           fields: formToSave.pages ? formToSave.pages.flatMap(page => page.fields || []) : []
         };
@@ -430,7 +423,6 @@ export const FormProvider = ({ children }) => {
       if (formToSave) {
         const backendData = {
           title: formToSave.name || formToSave.title,
-          status: formToSave.status,
           pages: formToSave.pages || [],
           fields: formToSave.pages ? formToSave.pages.flatMap(page => page.fields || []) : []
         };
