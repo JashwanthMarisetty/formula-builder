@@ -51,7 +51,7 @@ export const FormProvider = ({ children }) => {
       if (response.success) {
         // Transform backend form structure to match frontend structure
         // Handle both possible response formats
-        const formsArray = response.data?.forms || response.forms || [];
+        const formsArray = response.data?.forms || [];
         
         const transformedForms = formsArray.map(form => {
           // Properly handle multi-page forms from backend

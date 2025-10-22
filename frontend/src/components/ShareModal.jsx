@@ -4,12 +4,10 @@ import {
   Copy, 
   ExternalLink, 
   Check,
-  MessageCircle,
-  Facebook,
-  Linkedin,
-  Share2,
-  Code
+  Share2
 } from 'lucide-react';
+
+import { FaFacebook, FaLinkedin, FaWhatsapp } from "react-icons/fa";
 
 const ShareModal = ({ form, onClose }) => {
   const [activeTab, setActiveTab] = useState('link');
@@ -17,7 +15,6 @@ const ShareModal = ({ form, onClose }) => {
   const [visibility, setVisibility] = useState('public');
 
   const formUrl = `${window.location.origin}/form/${form.id || form._id}`;
-  const embedCode = `<iframe src="${formUrl}" width="100%" height="600" frameborder="0"></iframe>`;
 
   const handleCopyLink = async () => {
     try {
@@ -26,16 +23,6 @@ const ShareModal = ({ form, onClose }) => {
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
       console.error('Failed to copy link:', err);
-    }
-  };
-
-  const handleCopyEmbedCode = async () => {
-    try {
-      await navigator.clipboard.writeText(embedCode);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      console.error('Failed to copy embed code:', err);
     }
   };
 
@@ -49,7 +36,7 @@ const ShareModal = ({ form, onClose }) => {
     
     switch (platform) {
       case 'whatsapp':
-        window.open(`https://wa.me/?text=${encodeURIComponent(`${text} ${url}`)}`);
+        window.open(`https://wa.me/?text=${encodeURIComponent(url)}`);
         break;
       case 'facebook':
         window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`);
@@ -92,31 +79,21 @@ const ShareModal = ({ form, onClose }) => {
         {/* Tabs */}
         <div className="flex border-b border-gray-200">
           <button
-            onClick={() => setActiveTab('link')}
+            onClick={() => setActiveTab("link")}
             className={`flex-1 py-3 px-4 text-sm font-medium transition-colors ${
-              activeTab === 'link'
-                ? 'text-purple-600 border-b-2 border-purple-600'
-                : 'text-gray-500 hover:text-gray-700'
+              activeTab === "link"
+                ? "text-purple-600 border-b-2 border-purple-600"
+                : "text-gray-500 hover:text-gray-700"
             }`}
           >
             Share with Link
           </button>
           <button
-            onClick={() => setActiveTab('embed')}
+            onClick={() => setActiveTab("apps")}
             className={`flex-1 py-3 px-4 text-sm font-medium transition-colors ${
-              activeTab === 'embed'
-                ? 'text-purple-600 border-b-2 border-purple-600'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            Embed Code
-          </button>
-          <button
-            onClick={() => setActiveTab('apps')}
-            className={`flex-1 py-3 px-4 text-sm font-medium transition-colors ${
-              activeTab === 'apps'
-                ? 'text-purple-600 border-b-2 border-purple-600'
-                : 'text-gray-500 hover:text-gray-700'
+              activeTab === "apps"
+                ? "text-purple-600 border-b-2 border-purple-600"
+                : "text-gray-500 hover:text-gray-700"
             }`}
           >
             Share Through Apps
@@ -125,7 +102,7 @@ const ShareModal = ({ form, onClose }) => {
 
         {/* Content */}
         <div className="p-6">
-          {activeTab === 'link' && (
+          {activeTab === "link" && (
             <div className="space-y-6">
               {/* Visibility Settings */}
               <div>
@@ -134,7 +111,10 @@ const ShareModal = ({ form, onClose }) => {
                 </label>
                 <div className="space-y-2">
                   {visibilityOptions.map((option) => (
-                    <label key={option.value} className="flex items-start space-x-3 cursor-pointer">
+                    <label
+                      key={option.value}
+                      className="flex items-start space-x-3 cursor-pointer"
+                    >
                       <input
                         type="radio"
                         name="visibility"
@@ -144,8 +124,12 @@ const ShareModal = ({ form, onClose }) => {
                         className="mt-1 text-purple-600 focus:ring-purple-500"
                       />
                       <div>
-                        <div className="font-medium text-gray-900">{option.label}</div>
-                        <div className="text-sm text-gray-500">{option.description}</div>
+                        <div className="font-medium text-gray-900">
+                          {option.label}
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          {option.description}
+                        </div>
                       </div>
                     </label>
                   ))}
@@ -168,8 +152,8 @@ const ShareModal = ({ form, onClose }) => {
                     onClick={handleCopyLink}
                     className={`px-4 py-2 rounded-lg font-medium transition-colors ${
                       copied
-                        ? 'bg-green-100 text-green-700'
-                        : 'bg-green-600 text-white hover:bg-green-700'
+                        ? "bg-green-100 text-green-700"
+                        : "bg-green-600 text-white hover:bg-green-700"
                     }`}
                   >
                     {copied ? (
@@ -201,98 +185,45 @@ const ShareModal = ({ form, onClose }) => {
             </div>
           )}
 
-          {activeTab === 'embed' && (
-            <div className="space-y-6">
-              <p className="text-gray-600 text-sm">
-                Copy this code and paste it into your website to embed the form directly.
-              </p>
-              
-              {/* Embed Code */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Embed Code
-                </label>
-                <div className="relative">
-                  <textarea
-                    value={embedCode}
-                    readOnly
-                    rows={4}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-600 font-mono text-sm resize-none"
-                  />
-                  <button
-                    onClick={handleCopyEmbedCode}
-                    className="absolute top-2 right-2 p-2 bg-white border border-gray-300 rounded hover:bg-gray-50 transition-colors"
-                    title="Copy embed code"
-                  >
-                    {copied ? (
-                      <Check className="w-4 h-4 text-green-600" />
-                    ) : (
-                      <Copy className="w-4 h-4 text-gray-600" />
-                    )}
-                  </button>
-                </div>
-              </div>
-
-              {/* Embed Options */}
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <h4 className="font-medium text-blue-900 mb-2">Customization Options</h4>
-                <div className="space-y-2 text-sm text-blue-800">
-                  <p><strong>Width:</strong> Change "width='100%'" to a specific pixel value (e.g., "width='500'")</p>
-                  <p><strong>Height:</strong> Adjust "height='600'" based on your form length</p>
-                  <p><strong>Border:</strong> Set "frameborder='1'" to add a border around the form</p>
-                </div>
-              </div>
-
-              {/* Copy Button */}
-              <button
-                onClick={handleCopyEmbedCode}
-                className="w-full bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors flex items-center justify-center space-x-2"
-              >
-                <Code className="w-4 h-4" />
-                <span>Copy Embed Code</span>
-              </button>
-            </div>
-          )}
-
-          {activeTab === 'apps' && (
+          {activeTab === "apps" && (
             <div className="space-y-6">
               <p className="text-gray-600 text-sm">
                 Share your form through social media and messaging apps
               </p>
-              
+
               <div className="grid grid-cols-2 gap-4">
                 <button
-                  onClick={() => handleShareApp('whatsapp')}
+                  onClick={() => handleShareApp("whatsapp")}
                   className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
                 >
                   <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center">
-                    <MessageCircle className="w-5 h-5 text-white" />
+                    <FaWhatsapp className="w-5 h-5 text-white" />
                   </div>
                   <span className="font-medium text-gray-900">WhatsApp</span>
                 </button>
-                
+
                 <button
-                  onClick={() => handleShareApp('facebook')}
+                  onClick={() => handleShareApp("facebook")}
                   className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
                 >
                   <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
-                    <Facebook className="w-5 h-5 text-white" />
+                    <FaFacebook className="w-5 h-5 text-white" />
                   </div>
                   <span className="font-medium text-gray-900">Facebook</span>
                 </button>
-                
+
                 <button
-                  onClick={() => handleShareApp('linkedin')}
+                  onClick={() => handleShareApp("linkedin")}
                   className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
                 >
                   <div className="w-10 h-10 bg-blue-700 rounded-full flex items-center justify-center">
-                    <Linkedin className="w-5 h-5 text-white" />
+                    <FaLinkedin className="w-5 h-5 text-white" />
                   </div>
                   <span className="font-medium text-gray-900">LinkedIn</span>
                 </button>
-                
+
                 <button
-                  onClick={() => handleShareApp('general')}
+                  onClick={() => handleShareApp("general")}
                   className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
                 >
                   <div className="w-10 h-10 bg-gray-600 rounded-full flex items-center justify-center">

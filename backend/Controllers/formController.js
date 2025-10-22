@@ -155,21 +155,17 @@ const getAllForms = async (req, res) => {
     // Calculate pagination metadata
     const totalPages = Math.ceil(totalCount / limitNumber);
 
-    const hasNextPage=true;
+    let hasNextPage = false;
 
-    if(pageNumber<totalPages){
-      hasNextPage=true;
+    if(pageNumber < totalPages){
+      hasNextPage = true;
     }
 
-    else hasNextPage=false;
+    let hasPreviousPage = false;
 
-    const hasPreviousPage=true;
-
-    if(pageNumber>1){
+    if(pageNumber > 1){
       hasPreviousPage = true;
     }
-
-    else hasPreviousPage=false;
     
     // Forms are already in the correct format from the database
     // No transformation needed - frontend calculates stats on demand
@@ -439,14 +435,6 @@ const submitFormResponse = async (req, res) => {
       });
     }
 
-    // Allow submissions to both published and draft forms (for testing)
-    // In production, you might want to keep the published-only restriction
-    if (form.status !== "published" && form.status !== "draft") {
-      return res.status(400).json({
-        success: false,
-        message: "Form is not available for submissions",
-      });
-    }
 
     // Validate respondent email if form requires it
     if (form.collectRespondentEmail && respondentEmail) {
@@ -522,11 +510,6 @@ const submitFormResponse = async (req, res) => {
     res.status(201).json({
       success: true,
       message: "Response submitted successfully",
-      data: {
-        responseId: newResponse.id,
-        submittedAt: newResponse.submittedAt,
-        emailSent: form.collectRespondentEmail && respondentEmail ? true : false,
-      },
     });
   } catch (error) {
     console.error("Error submitting response:", error);
@@ -553,22 +536,13 @@ const getPublicForm = async (req, res) => {
     const { id } = req.params;
 
     const form = await Form.findById(id)
-      .select("title fields status views pages createdAt updatedAt collectRespondentEmail")
+      .select("title fields views pages createdAt updatedAt collectRespondentEmail")
       .lean();
 
     if (!form) {
       return res.status(404).json({
         success: false,
         message: "Form not found",
-      });
-    }
-
-    // Allow both published and draft forms for testing
-    // In production, you might want to keep the published-only restriction
-    if (form.status !== "published" && form.status !== "draft") {
-      return res.status(400).json({
-        success: false,
-        message: "Form is not available for public access",
       });
     }
 
