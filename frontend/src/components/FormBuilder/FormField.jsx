@@ -1,5 +1,5 @@
 import React from 'react';
-import { Star, Upload, Calendar, Clock } from 'lucide-react';
+import { Star, Upload, Calendar, Clock, MapPin } from 'lucide-react';
 
 const FormField = ({ field, isSelected, onUpdate }) => {
   const renderField = () => {
