@@ -4,6 +4,52 @@ import { formAPI } from '../services/api';
 import { ArrowLeft, ArrowRight, CheckCircle, Loader2, AlertCircle } from 'lucide-react';
 
 const PublicForm = () => {
+  // --- Conditional logic helpers (frontend) ---
+  const evalCondition = (cond, data) => {
+    const left = data?.[cond.field];
+    const right = cond.value;
+    switch (cond.op) {
+      case 'eq': return left === right;
+      case 'neq': return left !== right;
+      case 'gt': return Number(left) > Number(right);
+      case 'lt': return Number(left) < Number(right);
+      case 'contains':
+        if (Array.isArray(left)) return left.includes(right);
+        if (typeof left === 'string') return left.toLowerCase().includes(String(right).toLowerCase());
+        return false;
+      case 'in':
+        if (Array.isArray(right)) return right.includes(left);
+        return false;
+      default: return false;
+    }
+  };
+  const evalWhenArray = (whenArr = [], data) => whenArr.every((c) => evalCondition(c, data));
+  const isFieldVisible = (field, data) => {
+    const rules = Array.isArray(field.visibilityRules) ? field.visibilityRules : [];
+    if (rules.length === 0) return true;
+    for (const rule of rules) {
+      if (evalWhenArray(rule.when || [], data)) {
+        const action = rule.action || 'show';
+        return action === 'show';
+      }
+    }
+    return true;
+  };
+  const getVisibleFieldsForPage = (page, data) => (page?.fields || []).filter((f) => isFieldVisible(f, data));
+  const getNextPageIndex = (formObj, currentIndex, data) => {
+    const pages = formObj?.pages || [];
+    const page = pages[currentIndex];
+    if (!page) return currentIndex;
+    const logic = page.logic || {};
+    const skipRules = Array.isArray(logic.skipTo) ? logic.skipTo : [];
+    for (const rule of skipRules) {
+      if (evalWhenArray(rule.when || [], data)) {
+        const idx = pages.findIndex((p) => p.id === rule.toPageId);
+        if (idx >= 0) return idx;
+      }
+    }
+    return Math.min(currentIndex + 1, pages.length - 1);
+  };
   const { formId } = useParams();
   const navigate = useNavigate();
   
@@ -107,7 +153,8 @@ const PublicForm = () => {
     const pageErrors = {};
     let hasErrors = false;
 
-    currentPageData.fields.forEach(field => {
+    const fieldsToCheck = getVisibleFieldsForPage(currentPageData, formData);
+    fieldsToCheck.forEach(field => {
       let value;
       if (field.type === 'address') {
         // For address fields, check all subfields
@@ -156,9 +203,9 @@ const PublicForm = () => {
   };
 
   const handleNext = () => {
-    if (validateCurrentPage()) {
-      setCurrentPage(prev => prev + 1);
-    }
+    if (!validateCurrentPage()) return;
+    const nextIdx = getNextPageIndex(form, currentPage, formData);
+    setCurrentPage(nextIdx);
   };
 
   const handlePrevious = () => {
@@ -553,6 +600,7 @@ const PublicForm = () => {
   const currentPageData = form.pages[currentPage];
   const isLastPage = currentPage === form.pages.length - 1;
   const isFirstPage = currentPage === 0;
+  const visibleFields = getVisibleFieldsForPage(currentPageData, formData);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -599,7 +647,7 @@ const PublicForm = () => {
 
           {/* Form Fields */}
           <div>
-            {currentPageData.fields.map((field) => renderField(field))}
+            {visibleFields.map((field) => renderField(field))}
           </div>
 
           {/* Required Email Field for Confirmation (always shown on last page) */}

@@ -79,8 +79,19 @@ const formSchema = new mongoose.Schema(
                 type: String,
               },
             ],
+            // Conditional visibility rules for this field
+            // Format: [{ when: [{ field, op, value }], action?: 'show' | 'hide' }]
+            visibilityRules: {
+              type: [mongoose.Schema.Types.Mixed],
+              default: [],
+            },
           },
-        ]
+        ],
+        // Optional page-level logic (e.g., skip to page based on answers)
+        logic: {
+          type: mongoose.Schema.Types.Mixed,
+          default: {},
+        }
       }
     ],
 
@@ -128,6 +139,10 @@ const formSchema = new mongoose.Schema(
             type: String,
           },
         ],
+        visibilityRules: {
+          type: [mongoose.Schema.Types.Mixed],
+          default: [],
+        },
       },
     ],
 

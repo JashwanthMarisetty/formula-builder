@@ -12,7 +12,6 @@ const FormResponses = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [dateFilter, setDateFilter] = useState('all');
   const [fieldFilter, setFieldFilter] = useState('');
-  const [fieldValue, setFieldValue] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [showVisualization, setShowVisualization] = useState(false);
   const [selectedVisualization, setSelectedVisualization] = useState('overview');
@@ -24,6 +23,7 @@ const FormResponses = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalResponses, setTotalResponses] = useState(0);
   const [hasMore, setHasMore] = useState(false);
+  const [sortOrder, setSortOrder] = useState('desc');
 
   const form = forms.find(f => f.id === formId);
   
@@ -38,7 +38,9 @@ const FormResponses = () => {
       try {
         const result = await formAPI.getFormResponses(formId, {
           page: currentPage,
-          limit: 50
+          limit: 50,
+          sortBy: 'submittedAt',
+          sortOrder: sortOrder
         });
         
         if (result.success) {
@@ -61,7 +63,7 @@ const FormResponses = () => {
     };
     
     loadResponses();
-  }, [formId, form, currentPage]);
+  }, [formId, form, currentPage, sortOrder]);
 
   // Get all fields for filtering
   const allFields = form?.pages?.flatMap(page => page.fields) || [];
@@ -137,13 +139,14 @@ const FormResponses = () => {
       if (!matchesSearch) return false;
     }
 
-    // Field-specific filter
-    if (fieldFilter && fieldValue) {
+    // Field filter: show only responses where selected field has a non-empty value
+    if (fieldFilter) {
       const fieldData = response.data[fieldFilter];
       if (Array.isArray(fieldData)) {
-        return fieldData.some(v => v.toString().toLowerCase().includes(fieldValue.toLowerCase()));
+        if (fieldData.length === 0) return false;
+      } else {
+        if (!fieldData || fieldData.toString().trim() === '') return false;
       }
-      return fieldData?.toString().toLowerCase().includes(fieldValue.toLowerCase());
     }
 
     return true;
@@ -466,16 +469,16 @@ const FormResponses = () => {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Field Value
+                      Sort Order
                     </label>
-                    <input
-                      type="text"
-                      value={fieldValue}
-                      onChange={(e) => setFieldValue(e.target.value)}
-                      placeholder="Enter value to filter"
-                      disabled={!fieldFilter}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
-                    />
+                    <select
+                      value={sortOrder}
+                      onChange={(e) => { setSortOrder(e.target.value); setCurrentPage(1); }}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    >
+                      <option value="desc">Newest first</option>
+                      <option value="asc">Oldest first</option>
+                    </select>
                   </div>
                 </div>
                 <div className="mt-4 flex justify-end">
@@ -484,7 +487,8 @@ const FormResponses = () => {
                       setSearchTerm('');
                       setDateFilter('all');
                       setFieldFilter('');
-                      setFieldValue('');
+                      setSortOrder('desc');
+                      setCurrentPage(1);
                     }}
                     className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors"
                   >

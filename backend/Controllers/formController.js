@@ -157,16 +157,16 @@ const getAllForms = async (req, res) => {
 
     let hasNextPage = false;
 
-    if(pageNumber < totalPages){
+    if (pageNumber < totalPages) {
       hasNextPage = true;
     }
 
     let hasPreviousPage = false;
 
-    if(pageNumber > 1){
+    if (pageNumber > 1) {
       hasPreviousPage = true;
     }
-    
+
     // Forms are already in the correct format from the database
     // No transformation needed - frontend calculates stats on demand
 
@@ -289,7 +289,7 @@ const updateForm = async (req, res) => {
     const allFields = [];
 
     for (const page of updateData.pages) {
-      const pageFields = page.fields ||[];
+      const pageFields = page.fields || [];
       allFields.push(...pageFields);
     }
 
@@ -435,7 +435,6 @@ const submitFormResponse = async (req, res) => {
       });
     }
 
-
     // Validate respondent email if form requires it
     if (form.collectRespondentEmail && respondentEmail) {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -447,20 +446,34 @@ const submitFormResponse = async (req, res) => {
       }
     }
 
-    // Basic validation - check required fields
+    // Conditional validation - only enforce required on visible fields and reachable pages
+    const { isFieldVisible, buildReachablePageIds } = require("../utils/logic");
+
+    // Ensure we have pages; if missing, derive single page from fields
+    let pages = Array.isArray(form.pages) && form.pages.length > 0
+      ? form.pages
+      : [{ id: "page-1", name: "Page 1", fields: form.fields || [], logic: {} }];
+
+    const reachablePageIds = buildReachablePageIds(pages, responseData);
+
+    // Build a visibility map for fields
+    const visibleFieldIds = new Set();
+    for (const page of pages) {
+      if (!reachablePageIds.has(page.id)) continue;
+      for (const field of (page.fields || [])) {
+        if (isFieldVisible(field, responseData)) {
+          visibleFieldIds.add(field.id);
+        }
+      }
+    }
+
+    // Enforce required only for visible fields
     const fieldsToValidate = form.fields || [];
     for (let field of fieldsToValidate) {
-      if (field.required) {
+      if (field.required && visibleFieldIds.has(field.id)) {
         const fieldValue = responseData[field.id];
-        if (
-          !fieldValue ||
-          (typeof fieldValue === "string" && fieldValue.trim() === "") ||
-          (Array.isArray(fieldValue) && fieldValue.length === 0)
-        ) {
-          return res.status(400).json({
-            success: false,
-            message: `${field.label} is required`,
-          });
+        if (!fieldValue || (typeof fieldValue === "string" && fieldValue.trim() === "") || (Array.isArray(fieldValue) && fieldValue.length === 0)) {
+          return res.status(400).json({ success: false, message: `${field.label} is required` });
         }
       }
     }
@@ -483,7 +496,8 @@ const submitFormResponse = async (req, res) => {
     // Send confirmation email if email was provided (email collection is enabled by default)
     if (respondentEmail) {
       const subject = `Form Submission Confirmation - ${form.title}`;
-      const text ="Thank you for your submission! We have received your response.";
+      const text =
+        "Thank you for your submission! We have received your response.";
       const html = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9fafb;">
           <div style="background-color: white; border-radius: 10px; padding: 30px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
@@ -494,7 +508,9 @@ const submitFormResponse = async (req, res) => {
             <div style="background-color: #f3f4f6; border-radius: 8px; padding: 20px; margin: 20px 0;">
               <p style="color: #6b7280; font-size: 14px; margin: 0;">
                 <strong>Submission ID:</strong> ${newResponse.id}<br>
-                <strong>Submitted at:</strong> ${new Date(newResponse.submittedAt).toLocaleString()}
+                <strong>Submitted at:</strong> ${new Date(
+                  newResponse.submittedAt
+                ).toLocaleString()}
               </p>
             </div>
           </div>
@@ -503,7 +519,10 @@ const submitFormResponse = async (req, res) => {
 
       // Send email asynchronously (won't block response)
       sendEmail(respondentEmail, subject, text, html).catch((err) =>
-        console.error("Error sending confirmation email to respondent:", err.message)
+        console.error(
+          "Error sending confirmation email to respondent:",
+          err.message
+        )
       );
     }
 
@@ -536,7 +555,9 @@ const getPublicForm = async (req, res) => {
     const { id } = req.params;
 
     const form = await Form.findById(id)
-      .select("title fields views pages createdAt updatedAt collectRespondentEmail")
+      .select(
+        "title fields views pages createdAt updatedAt collectRespondentEmail"
+      )
       .lean();
 
     if (!form) {
@@ -596,12 +617,13 @@ const getPublicForm = async (req, res) => {
 const getFormResponses = async (req, res) => {
   try {
     const { id } = req.params;
-    const {
-      page = 1,
-      limit = 50,
-      sortBy = "submittedAt",
-      sortOrder = "desc",
-    } = req.query;
+    
+    let { page, limit, sortBy, sortOrder } = req.query;
+
+    if (!page) page = 1;
+    if (!limit) limit = 50;
+    if (!sortBy) sortBy = "submittedAt";
+    if (!sortOrder) sortOrder = "desc";
 
     const form = await Form.findById(id)
       .select("title responses createdBy")
