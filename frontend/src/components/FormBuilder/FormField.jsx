@@ -157,6 +157,54 @@ const FormField = ({ field, isSelected, onUpdate }) => {
           </div>
         );
       
+      case 'location':
+        return (
+          <div className="w-full">
+            {/* Map Preview Container */}
+            <div className="relative w-full h-48 bg-gray-100 border-2 border-dashed border-gray-300 rounded-lg overflow-hidden">
+              {/* Grayed-out map preview */}
+              <div className="absolute inset-0 bg-gradient-to-br from-gray-200 to-gray-300 opacity-60"></div>
+              
+              {/* Map grid pattern */}
+              <div className="absolute inset-0" style={{
+                backgroundImage: `
+                  linear-gradient(rgba(0,0,0,0.1) 1px, transparent 1px),
+                  linear-gradient(90deg, rgba(0,0,0,0.1) 1px, transparent 1px)
+                `,
+                backgroundSize: '20px 20px'
+              }}></div>
+              
+              {/* Center icon and text */}
+              <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-500">
+                <MapPin className="w-8 h-8 mb-2 text-gray-600" />
+                <p className="text-sm font-medium">Map will appear here</p>
+                <p className="text-xs text-gray-400 mt-1">{field.placeholder}</p>
+              </div>
+              
+              {/* Settings indicator */}
+              <div className="absolute top-2 right-2 bg-white rounded-full p-1 shadow-sm">
+                <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+              </div>
+            </div>
+            
+            {/* Location settings preview */}
+            <div className="mt-3 text-xs text-gray-500 space-y-1">
+              {field.locationSettings?.autoFetchLocation && (
+                <div className="flex items-center space-x-1">
+                  <div className="w-1 h-1 bg-green-500 rounded-full"></div>
+                  <span>Auto-fetch user location</span>
+                </div>
+              )}
+              {field.locationSettings?.allowManualPin && (
+                <div className="flex items-center space-x-1">
+                  <div className="w-1 h-1 bg-blue-500 rounded-full"></div>
+                  <span>Manual pin drop allowed</span>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      
       default:
         return (
           <input

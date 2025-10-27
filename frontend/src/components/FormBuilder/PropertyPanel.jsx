@@ -309,6 +309,99 @@ const PropertyPanel = ({ field, onUpdateField, onClose }) => {
               </div>
             )}
 
+            {/* Location Settings */}
+            {field.type === 'location' && (
+              <div>
+                <label className="block text-xs lg:text-sm font-medium text-gray-700 mb-3">
+                  Location Settings
+                </label>
+                <div className="space-y-4">
+                  {/* Auto-fetch Location */}
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="auto-fetch"
+                      checked={field.locationSettings?.autoFetchLocation || false}
+                      onChange={(e) => {
+                        const newSettings = {
+                          ...field.locationSettings,
+                          autoFetchLocation: e.target.checked
+                        };
+                        handleInputChange('locationSettings', newSettings);
+                      }}
+                      className="text-purple-600 focus:ring-purple-500"
+                    />
+                    <label htmlFor="auto-fetch" className="text-xs lg:text-sm text-gray-700">
+                      Auto-fetch user location
+                    </label>
+                  </div>
+                  <p className="text-xs text-gray-500 ml-5 -mt-2">
+                    Automatically request user's current location when the form loads
+                  </p>
+
+                  {/* Allow Manual Pin Drop */}
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="manual-pin"
+                      checked={field.locationSettings?.allowManualPin || false}
+                      onChange={(e) => {
+                        const newSettings = {
+                          ...field.locationSettings,
+                          allowManualPin: e.target.checked
+                        };
+                        handleInputChange('locationSettings', newSettings);
+                      }}
+                      className="text-purple-600 focus:ring-purple-500"
+                    />
+                    <label htmlFor="manual-pin" className="text-xs lg:text-sm text-gray-700">
+                      Allow manual pin drop
+                    </label>
+                  </div>
+                  <p className="text-xs text-gray-500 ml-5 -mt-2">
+                    Let users click on the map to select a different location
+                  </p>
+
+                  {/* Default Zoom Level */}
+                  <div>
+                    <label className="block text-xs lg:text-sm font-medium text-gray-700 mb-1">
+                      Default Zoom Level
+                    </label>
+                    <select
+                      value={field.locationSettings?.defaultZoom || 10}
+                      onChange={(e) => {
+                        const newSettings = {
+                          ...field.locationSettings,
+                          defaultZoom: parseInt(e.target.value)
+                        };
+                        handleInputChange('locationSettings', newSettings);
+                      }}
+                      className="w-full px-2 lg:px-3 py-1 lg:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-xs lg:text-sm"
+                    >
+                      <option value={5}>City Level (5)</option>
+                      <option value={10}>District Level (10)</option>
+                      <option value={15}>Neighborhood (15)</option>
+                      <option value={18}>Street Level (18)</option>
+                    </select>
+                  </div>
+
+                  {/* Help Text for Location */}
+                  <div>
+                    <label className="block text-xs lg:text-sm font-medium text-gray-700 mb-1">
+                      Help Text
+                    </label>
+                    <textarea
+                      value={field.locationHelpText || ''}
+                      onChange={(e) => handleInputChange('locationHelpText', e.target.value)}
+                      rows={2}
+                      className="w-full px-2 lg:px-3 py-1 lg:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none text-xs lg:text-sm"
+                      placeholder="e.g., Please select your current location or the location where you want the service"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Required Field */}
             <div className="flex items-center space-x-2">
               <input
