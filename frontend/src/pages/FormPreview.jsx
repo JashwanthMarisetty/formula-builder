@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useForm } from '../contexts/FormContext';
 import Navbar from '../components/Navbar';
+import GoogleMap from '../components/GoogleMap';
 import { ArrowLeft, Send, Upload, Star } from 'lucide-react';
 
 const FormPreview = () => {
@@ -29,6 +30,8 @@ const FormPreview = () => {
             field.subfields?.forEach(subfield => {
               initialData[`${field.id}_${subfield.name}`] = '';
             });
+          } else if (field.type === 'location') {
+            initialData[field.id] = null; // Initialize as null instead of empty string
           } else {
             initialData[field.id] = '';
           }
@@ -58,6 +61,11 @@ const FormPreview = () => {
 
     // Required field validation
     if (field.required && (!value || (Array.isArray(value) && value.length === 0))) {
+      return `${field.label} is required`;
+    }
+
+    // Location field validation
+    if (field.type === 'location' && field.required && !value) {
       return `${field.label} is required`;
     }
 
@@ -153,7 +161,10 @@ const FormPreview = () => {
 
       updateForm(form.id, updatedForm);
 
-      // Navigate to responses page
+      // Show success message
+      alert('✅ Form submitted successfully!');
+      
+      // Navigate to responses page or back to form builder
       navigate(`/form-responses/${form.id}`);
     }
   };
@@ -348,6 +359,85 @@ const FormPreview = () => {
                 )}
               </div>
             ))}
+          </div>
+        );
+      
+      case 'location':
+        return (
+          <div className="w-full">
+            {/* Location help text */}
+            {field.locationSettings?.helpText && (
+              <p className="text-sm text-gray-600 mb-3">
+                {field.locationSettings.helpText}
+              </p>
+            )}
+
+            {/* Interactive Google Map */}
+            <GoogleMap
+              onLocationSelect={(location) => {
+                const locationData = {
+                  lat: location.lat,
+                  lng: location.lng,
+                };
+                handleInputChange(field.id, locationData);
+              }}
+              initialLocation={
+                field.locationSettings?.mapCenter || {
+                  lat: 13.368309,
+                  lng: 78.571367,
+                }
+              }
+              zoom={field.locationSettings?.defaultZoom || 10}
+              height="400px"
+              showUseMyLocationButton={
+                field.locationSettings?.autoFetchLocation !== false
+              }
+              showCoordinates={true}
+              isInteractive={true}
+              className={error ? "border-red-500" : ""}
+            />
+
+            {/* Reset Marker Button */}
+            {value && (
+              <div className="mt-3 flex justify-center">
+                <button
+                  type="button"
+                  onClick={() => handleInputChange(field.id, null)}
+                  className="text-sm text-gray-600 hover:text-purple-600 underline"
+                >
+                  Reset Marker
+                </button>
+              </div>
+            )}
+
+            {/* Display current selection if available */}
+            {value && typeof value === "object" && value.lat && value.lng && (
+              <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                    <span className="text-sm text-green-700 font-medium">
+                      Location Selected
+                    </span>
+                  </div>
+                </div>
+                <div className="mt-2 space-y-1 text-xs text-green-600">
+                  <p>
+                    <strong>Latitude:</strong> {value.lat.toFixed(6)}
+                  </p>
+                  <p>
+                    <strong>Longitude:</strong> {value.lng.toFixed(6)}
+                  </p>
+                  {value.address &&
+                    value.address !==
+                      `${value.lat.toFixed(6)}, ${value.lng.toFixed(6)}` && (
+                      <p>
+                        <strong>Address:</strong> {value.address}
+                      </p>
+                    )}
+                </div>
+              </div>
+            )}
           </div>
         );
       

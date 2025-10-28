@@ -13,6 +13,7 @@ import MyForms from './pages/MyForms';
 import Profile from './pages/Profile';
 import ActivityLogs from './pages/ActivityLogs';
 import PublicForm from './pages/PublicForm';
+import MapTest from './pages/MapTest';
 import ProtectedRoute from './components/ProtectedRoute';
 import './index.css';
 
@@ -63,6 +64,8 @@ function App() {
               } />
               {/* Public form filling route - no authentication required */}
               <Route path="/form/:formId" element={<PublicForm />} />
+              {/* Map testing route - for debugging Google Maps API issues */}
+              <Route path="/map-test" element={<MapTest />} />
             </Routes>
           </div>
         </Router>

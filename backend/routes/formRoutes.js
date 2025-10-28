@@ -10,7 +10,9 @@ const {
   getPublicForm,
   getFormResponses,
   getResponseById,
-  deleteResponse
+  deleteResponse,
+  getLocationCounts,
+  getLocationHeatmap,
 } = require("../Controllers/formController");
 const { auth } = require("../middleware/auth");
 const {
@@ -51,5 +53,9 @@ router.get("/:formId/responses/:responseId", auth, getResponseById);
 
 // DELETE /api/forms/:formId/responses/:responseId - Delete a specific response
 router.delete("/:formId/responses/:responseId", auth, deleteResponse);
+
+// ANALYTICS
+router.get("/:id/analytics/location-counts", auth, getLocationCounts);
+router.get("/:id/analytics/heatmap", auth, getLocationHeatmap);
 
 module.exports = router;

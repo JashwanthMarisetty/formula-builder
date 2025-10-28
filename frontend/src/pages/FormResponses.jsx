@@ -4,7 +4,8 @@ import { useForm } from '../contexts/FormContext';
 import { formAPI } from '../services/api';
 import { filterResponsesByDate, getDateRangeDescription } from '../utils/dateFilters';
 import Navbar from '../components/Navbar';
-import { ArrowLeft, Download, Filter, Calendar, Search, BarChart3, PieChart, TrendingUp, Users, Loader2, Trash2, AlertTriangle } from 'lucide-react';
+import GoogleMap from '../components/GoogleMap';
+import { ArrowLeft, Download, Filter, Calendar, Search, BarChart3, PieChart, TrendingUp, Users, Loader2, Trash2, AlertTriangle, MapPin } from 'lucide-react';
 
 const FormResponses = () => {
   const { formId } = useParams();
@@ -24,6 +25,10 @@ const FormResponses = () => {
   const [totalResponses, setTotalResponses] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   const [sortOrder, setSortOrder] = useState('desc');
+  // Location analytics
+  const [locationCounts, setLocationCounts] = useState([]);
+  const [heatmapPoints, setHeatmapPoints] = useState([]);
+  const [locationFieldId, setLocationFieldId] = useState(null);
 
   const form = forms.find(f => f.id === formId);
   
@@ -65,6 +70,27 @@ const FormResponses = () => {
     loadResponses();
   }, [formId, form, currentPage, sortOrder]);
 
+  // Load analytics from API
+  useEffect(() => {
+    const loadAnalytics = async () => {
+      try {
+        const countsRes = await formAPI.getLocationCounts(formId);
+        if (countsRes.success) {
+          setLocationCounts(countsRes.data.items);
+          setLocationFieldId(countsRes.data.fieldId);
+        }
+        const heatRes = await formAPI.getHeatmapPoints(formId);
+        if (heatRes.success) {
+          setHeatmapPoints(heatRes.data.points);
+        }
+      } catch (e) {
+        // Non-fatal
+        console.warn('Analytics load failed:', e?.message || e);
+      }
+    };
+    if (formId) loadAnalytics();
+  }, [formId]);
+
   // Get all fields for filtering
   const allFields = form?.pages?.flatMap(page => page.fields) || [];
   const filterableFields = allFields.filter(field => 
@@ -84,6 +110,9 @@ const FormResponses = () => {
           field.subfields?.forEach(subfield => {
             headers.push(`${field.label} - ${subfield.label}`);
           });
+        } else if (field.type === 'location') {
+          headers.push(`${field.label} - Latitude`);
+          headers.push(`${field.label} - Longitude`);
         } else {
           headers.push(field.label);
         }
@@ -102,6 +131,15 @@ const FormResponses = () => {
               field.subfields?.forEach(subfield => {
                 row.push(response.data[`${field.id}_${subfield.name}`] || '');
               });
+            } else if (field.type === 'location') {
+              const locationValue = response.data[field.id];
+              if (locationValue && locationValue.lat && locationValue.lng) {
+                row.push(parseFloat(locationValue.lat).toFixed(6));
+                row.push(parseFloat(locationValue.lng).toFixed(6));
+              } else {
+                row.push(''); // Latitude
+                row.push(''); // Longitude
+              }
             } else {
               const value = response.data[field.id];
               if (Array.isArray(value)) {
@@ -260,6 +298,7 @@ const FormResponses = () => {
         </div>
       </div>
       
+      {/* Avg. Completion card (to be enabled later)
       <div className="bg-gradient-to-r from-purple-500 to-purple-600 text-white p-4 rounded-lg">
         <div className="flex items-center justify-between">
           <div>
@@ -269,6 +308,7 @@ const FormResponses = () => {
           <Calendar className="w-8 h-8 text-purple-200" />
         </div>
       </div>
+      */}
     </div>
   );
 
@@ -349,6 +389,198 @@ const FormResponses = () => {
       </div>
     </div>
   );
+
+  const LocationsVisualization = ({ responses, form }) => {
+    // Extract location data from responses
+    const locationData = [];
+    const locationFields = form.pages.flatMap(page => 
+      page.fields.filter(field => field.type === 'location')
+    );
+
+    if (locationFields.length === 0) {
+      return (
+        <div className="text-center py-8">
+          <MapPin className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+          <p className="text-gray-500">No location fields found in this form</p>
+        </div>
+      );
+    }
+
+    responses.forEach(response => {
+      locationFields.forEach(field => {
+        const locationValue = response.data[field.id];
+        
+        // Handle both old JSON string format and new object format
+        let parsedLocation = null;
+        if (locationValue) {
+          if (typeof locationValue === 'object' && locationValue.lat && locationValue.lng) {
+            // New object format
+            parsedLocation = locationValue;
+          } else if (typeof locationValue === 'string') {
+            // Old JSON string format
+            try {
+              parsedLocation = JSON.parse(locationValue);
+            } catch (e) {
+              console.warn('Failed to parse location data:', locationValue);
+            }
+          }
+        }
+        
+        if (parsedLocation && parsedLocation.lat && parsedLocation.lng) {
+          locationData.push({
+            id: `${response.id}-${field.id}`,
+            lat: parseFloat(parsedLocation.lat),
+            lng: parseFloat(parsedLocation.lng),
+            fieldLabel: field.label,
+            submittedAt: response.submittedAt,
+            responseId: response.id,
+            address: parsedLocation.address || `${parsedLocation.lat.toFixed(6)}, ${parsedLocation.lng.toFixed(6)}`
+          });
+        }
+      });
+    });
+
+    if (locationData.length === 0) {
+      return (
+        <div className="text-center py-8">
+          <MapPin className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+          <p className="text-gray-500">No location data found in responses</p>
+          <p className="text-gray-400 text-sm mt-2">
+            Location data will appear here when users submit the form with location fields
+          </p>
+        </div>
+      );
+    }
+
+    // Calculate center point for map
+    const centerLat = locationData.reduce((sum, loc) => sum + loc.lat, 0) / locationData.length;
+    const centerLng = locationData.reduce((sum, loc) => sum + loc.lng, 0) / locationData.length;
+
+    const handleMarkerClick = (marker) => {
+      // Show marker info - could be expanded to show more details
+      console.log('Clicked marker:', marker);
+    };
+
+    // Build bar chart data using API aggregation if available; fallback to computed addresses
+    // Build city counts from backend; fallback to local totals
+    const cityItems = (() => {
+      if (locationCounts && locationCounts.length > 0) {
+        return locationCounts.map(item => ({ city: item.city || item.address, count: item.count }));
+      }
+      const agg = new Map();
+      locationData.forEach(loc => {
+        const key = loc.address || `${loc.lat.toFixed(6)}, ${loc.lng.toFixed(6)}`;
+        agg.set(key, (agg.get(key) || 0) + 1);
+      });
+      return Array.from(agg.entries()).map(([city, count]) => ({ city, count }));
+    })();
+
+    const chartItems = cityItems.sort((a,b)=>b.count-a.count).slice(0,10);
+
+    const mapCenter = { lat: centerLat, lng: centerLng };
+
+    // Toggle Heatmap vs Pins
+    const [showHeatmap, setShowHeatmap] = React.useState(false);
+
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-semibold text-gray-900">
+            Form Submission Locations ({locationData.length} locations)
+          </h3>
+          <div className="text-sm text-gray-500">
+            {locationFields.map(field => field.label).join(', ')}
+          </div>
+        </div>
+
+        {/* Bar chart */}
+        <div className="bg-white rounded-lg border border-gray-200 p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h4 className="font-semibold text-gray-900">Top Cities</h4>
+            <button
+              type="button"
+              onClick={() => setShowHeatmap(prev => !prev)}
+              className="text-sm px-3 py-1 rounded border border-gray-300 hover:bg-gray-50"
+            >
+              {showHeatmap ? 'Show Pins' : 'Show Heatmap'}
+            </button>
+          </div>
+          {chartItems.length === 0 ? (
+            <p className="text-gray-500 text-sm">No location data yet.</p>
+          ) : (
+            <div className="space-y-2">
+              {chartItems.map((item, idx) => {
+                const max = chartItems[0].count || 1;
+                const width = Math.round((item.count / max) * 100);
+                return (
+                  <div key={idx}>
+                    <div className="flex justify-between text-xs text-gray-600 mb-1">
+                      <span className="truncate max-w-[70%]" title={item.city}>{item.city}</span>
+                      <span>{item.count}</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded h-2">
+                      <div className="bg-purple-600 h-2 rounded" style={{ width: `${width}%` }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+        
+        {/* Map: pins by default, heatmap on toggle */}
+        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+          <div style={{ height: '500px', width: '100%' }}>
+            {showHeatmap ? (
+              <GoogleMap 
+                initialLocation={mapCenter}
+                zoom={5}
+                isInteractive={true}
+                showUseMyLocationButton={false}
+                showCoordinates={false}
+                heatmapPoints={heatmapPoints && heatmapPoints.length ? heatmapPoints : locationData}
+                className="w-full h-full"
+              />
+            ) : (
+              <GoogleMap
+                initialLocation={mapCenter}
+                zoom={8}
+                isInteractive={true}
+                showUseMyLocationButton={false}
+                showCoordinates={false}
+                markers={locationData.map(m => ({
+                  lat: m.lat,
+                  lng: m.lng,
+                  title: m.address
+                }))}
+                className="w-full h-full"
+              />
+            )}
+          </div>
+        </div>
+
+        <div className="bg-gray-50 rounded-lg p-4">
+          <h4 className="font-medium text-gray-900 mb-3">Location Summary</h4>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+            <div className="bg-white p-3 rounded border">
+              <div className="font-semibold text-gray-900">{locationData.length}</div>
+              <div className="text-gray-600">Total Locations</div>
+            </div>
+            <div className="bg-white p-3 rounded border">
+              <div className="font-semibold text-gray-900">{locationFields.length}</div>
+              <div className="text-gray-600">Location Fields</div>
+            </div>
+            <div className="bg-white p-3 rounded border">
+              <div className="font-semibold text-gray-900">
+                {new Set(locationData.map(loc => loc.responseId)).size}
+              </div>
+              <div className="text-gray-600">Unique Responses</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   if (!form) {
     return (
@@ -514,6 +746,7 @@ const FormResponses = () => {
                     >
                       Overview
                     </button>
+                    {/*
                     <button
                       onClick={() => setSelectedVisualization('fields')}
                       className={`px-3 py-1 rounded text-sm ${
@@ -534,6 +767,18 @@ const FormResponses = () => {
                     >
                       Trends
                     </button>
+                    */}
+                    <button
+                      onClick={() => setSelectedVisualization('locations')}
+                      className={`px-3 py-1 rounded text-sm ${
+                        selectedVisualization === 'locations'
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-white text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      <MapPin className="w-3 h-3 inline mr-1" />
+                      Locations
+                    </button>
                   </div>
                 </div>
                 
@@ -542,6 +787,7 @@ const FormResponses = () => {
                     <OverviewVisualization data={visualizationData.overview} />
                   )}
                   
+                  {/*
                   {selectedVisualization === 'fields' && (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                       {visualizationData.fields.length > 0 ? (
@@ -559,6 +805,11 @@ const FormResponses = () => {
                   
                   {selectedVisualization === 'trends' && (
                     <TrendsVisualization data={visualizationData.trends} />
+                  )}
+                  */}
+                  
+                  {selectedVisualization === 'locations' && (
+                    <LocationsVisualization responses={filteredResponses} form={form} />
                   )}
                 </div>
               </div>
@@ -635,12 +886,25 @@ const FormResponses = () => {
                               <div className="truncate" title={
                                 field.type === 'address' 
                                   ? field.subfields?.map(sf => response.data[`${field.id}_${sf.name}`]).filter(Boolean).join(', ') || '-'
+                                  : field.type === 'location'
+                                    ? (response.data[field.id]?.lat && response.data[field.id]?.lng) 
+                                      ? `${parseFloat(response.data[field.id].lat).toFixed(6)}, ${parseFloat(response.data[field.id].lng).toFixed(6)}`
+                                      : '-'
                                   : Array.isArray(response.data[field.id]) 
                                     ? response.data[field.id].join(', ')
                                     : response.data[field.id] || '-'
                               }>
                                 {field.type === 'address' 
                                   ? field.subfields?.map(sf => response.data[`${field.id}_${sf.name}`]).filter(Boolean).join(', ') || '-'
+                                  : field.type === 'location'
+                                    ? (response.data[field.id]?.lat && response.data[field.id]?.lng) 
+                                      ? (
+                                        <div className="flex items-center space-x-2">
+                                          <MapPin className="w-4 h-4 text-gray-400" />
+                                          <span>{parseFloat(response.data[field.id].lat).toFixed(4)}, {parseFloat(response.data[field.id].lng).toFixed(4)}</span>
+                                        </div>
+                                      )
+                                      : '-'
                                   : Array.isArray(response.data[field.id]) 
                                     ? response.data[field.id].join(', ')
                                     : response.data[field.id] || '-'

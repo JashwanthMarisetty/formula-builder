@@ -1,5 +1,6 @@
 import React from 'react';
 import { Star, Upload, Calendar, Clock, MapPin } from 'lucide-react';
+import GoogleMap from '../GoogleMap';
 
 const FormField = ({ field, isSelected, onUpdate }) => {
   const renderField = () => {
