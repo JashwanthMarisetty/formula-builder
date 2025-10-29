@@ -25,6 +25,7 @@ const FormResponses = () => {
   const [totalResponses, setTotalResponses] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   const [sortOrder, setSortOrder] = useState('desc');
+  const [totalPages, setTotalPages] = useState(1);
   // Location analytics
   const [locationCounts, setLocationCounts] = useState([]);
   const [heatmapPoints, setHeatmapPoints] = useState([]);
@@ -43,19 +44,17 @@ const FormResponses = () => {
       try {
         const result = await formAPI.getFormResponses(formId, {
           page: currentPage,
-          limit: 50,
+          limit: 8,
           sortBy: 'submittedAt',
           sortOrder: sortOrder
         });
         
         if (result.success) {
-          if (currentPage === 1) {
-            setResponses(result.data.responses);
-          } else {
-            setResponses(prev => [...prev, ...result.data.responses]);
-          }
+          // Replace responses for numbered pagination
+          setResponses(result.data.responses);
           setTotalResponses(result.data.pagination.totalCount);
           setHasMore(result.data.pagination.hasNextPage);
+          setTotalPages(result.data.pagination.totalPages);
         }
       } catch (error) {
         console.error('Error loading responses:', error);
@@ -855,6 +854,8 @@ const FormResponses = () => {
                 </p>
               </div>
             ) : (
+              <>
+              
               <div className="overflow-x-auto">
                 <table className="w-full min-w-full">
                   <thead className="bg-gray-50">
@@ -932,6 +933,40 @@ const FormResponses = () => {
                   </tbody>
                 </table>
               </div>
+
+              {/* Numbered Pagination */}
+              <div className="mt-6 flex justify-center">
+                <nav className="inline-flex items-center space-x-1" aria-label="Pagination">
+                  <button
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className={`px-3 py-1 rounded border text-sm ${currentPage === 1 ? 'text-gray-400 border-gray-200' : 'text-gray-700 hover:bg-gray-50 border-gray-300'}`}
+                  >
+                    Prev
+                  </button>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
+                    <button
+                      key={pageNum}
+                      onClick={() => setCurrentPage(pageNum)}
+                      className={`px-3 py-1 rounded border text-sm ${
+                        currentPage === pageNum
+                          ? 'bg-purple-600 text-white border-purple-600'
+                          : 'text-gray-700 hover:bg-gray-50 border-gray-300'
+                      }`}
+                    >
+                      {pageNum}
+                    </button>
+                  ))}
+                  <button
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    className={`px-3 py-1 rounded border text-sm ${currentPage === totalPages ? 'text-gray-400 border-gray-200' : 'text-gray-700 hover:bg-gray-50 border-gray-300'}`}
+                  >
+                    Next
+                  </button>
+                </nav>
+              </div>
+              </>
             )}
           </div>
         </div>

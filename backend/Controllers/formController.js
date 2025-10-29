@@ -427,47 +427,66 @@ const submitFormResponse = async (req, res) => {
 
     // 1) Find form
     const form = await Form.findById(id);
-    if (!form) return res.status(404).json({ success: false, message: "Form not found" });
+    if (!form)
+      return res
+        .status(404)
+        .json({ success: false, message: "Form not found" });
 
     // 2) Basic email check (only if provided)
     const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
     if (respondentEmail && !isValidEmail(respondentEmail)) {
-      return res.status(400).json({ success: false, message: "Please provide a valid email address" });
+      return res
+        .status(400)
+        .json({
+          success: false,
+          message: "Please provide a valid email address",
+        });
     }
 
     // 3) Resolve pages + visibility
-    const pages = (Array.isArray(form.pages) && form.pages.length)
-      ? form.pages
-      : [{ id: "page-1", name: "Page 1", fields: form.fields || [], logic: {} }];
+    const pages =
+      Array.isArray(form.pages) && form.pages.length
+        ? form.pages
+        : [
+            {
+              id: "page-1",
+              name: "Page 1",
+              fields: form.fields || [],
+              logic: {},
+            },
+          ];
 
     const reachable = buildReachablePageIds(pages, responseData);
     const visibleIds = new Set();
     for (const page of pages) {
       if (!reachable.has(page.id)) continue;
-      for (const field of (page.fields || [])) {
+      for (const field of page.fields || []) {
         if (isFieldVisible(field, responseData)) visibleIds.add(field.id);
       }
     }
 
     // 4) Enforce required only for visible fields
-    for (const field of (form.fields || [])) {
+    for (const field of form.fields || []) {
       if (!field.required || !visibleIds.has(field.id)) continue;
       const v = responseData[field.id];
       const isEmptyString = typeof v === "string" && v.trim() === "";
       const isEmptyArray = Array.isArray(v) && v.length === 0;
       if (v == null || isEmptyString || isEmptyArray) {
-        return res.status(400).json({ success: false, message: `${field.label} is required` });
+        return res
+          .status(400)
+          .json({ success: false, message: `${field.label} is required` });
       }
     }
 
     // 5) Best-effort enrichment for location answers
     try {
       for (const page of pages) {
-        for (const field of (page.fields || [])) {
-          if (field.type !== 'location') continue;
+        for (const field of page.fields || []) {
+          if (field.type !== "location") continue;
           const loc = responseData[field.id];
-          if (!loc || typeof loc !== 'object') continue;
-          const lat = Number(loc.lat); const lng = Number(loc.lng);
+          if (!loc || typeof loc !== "object") continue;
+          const lat = Number(loc.lat);
+          const lng = Number(loc.lng);
           if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
           const geo = await reverseGeocode(lat, lng);
           if (geo) {
@@ -482,7 +501,7 @@ const submitFormResponse = async (req, res) => {
         }
       }
     } catch (e) {
-      console.warn('Location enrichment failed:', e?.message || e);
+      console.warn("Location enrichment failed:", e?.message || e);
     }
 
     // 6) Save response
@@ -500,7 +519,8 @@ const submitFormResponse = async (req, res) => {
     // 7) Fire-and-forget confirmation email
     if (respondentEmail) {
       const subject = `Form Submission Confirmation - ${form.title}`;
-      const text = "Thank you for your submission! We have received your response.";
+      const text =
+        "Thank you for your submission! We have received your response.";
       const html = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9fafb;">
           <div style="background-color: white; border-radius: 10px; padding: 30px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
@@ -511,24 +531,35 @@ const submitFormResponse = async (req, res) => {
             <div style="background-color: #f3f4f6; border-radius: 8px; padding: 20px; margin: 20px 0;">
               <p style="color: #6b7280; font-size: 14px; margin: 0;">
                 <strong>Submission ID:</strong> ${newResponse.id}<br>
-                <strong>Submitted at:</strong> ${new Date(newResponse.submittedAt).toLocaleString()}
+                <strong>Submitted at:</strong> ${new Date(
+                  newResponse.submittedAt
+                ).toLocaleString()}
               </p>
             </div>
           </div>
         </div>
       `;
       sendEmail(respondentEmail, subject, text, html).catch((err) =>
-        console.error("Error sending confirmation email to respondent:", err.message)
+        console.error(
+          "Error sending confirmation email to respondent:",
+          err.message
+        )
       );
     }
 
-    return res.status(201).json({ success: true, message: "Response submitted successfully" });
+    return res
+      .status(201)
+      .json({ success: true, message: "Response submitted successfully" });
   } catch (error) {
     console.error("Error submitting response:", error);
     if (error.name === "CastError") {
-      return res.status(400).json({ success: false, message: "Invalid form ID format" });
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid form ID format" });
     }
-    return res.status(500).json({ success: false, message: "Server error", error: error.message });
+    return res
+      .status(500)
+      .json({ success: false, message: "Server error", error: error.message });
   }
 };
 
@@ -600,11 +631,11 @@ const getPublicForm = async (req, res) => {
 const getFormResponses = async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     let { page, limit, sortBy, sortOrder } = req.query;
 
     if (!page) page = 1;
-    if (!limit) limit = 50;
+    if (!limit) limit = 10;
     if (!sortBy) sortBy = "submittedAt";
     if (!sortOrder) sortOrder = "desc";
 
@@ -808,11 +839,11 @@ const getLocationFieldId = (form, requestedFieldId) => {
   if (requestedFieldId) return requestedFieldId;
   for (const p of form.pages || []) {
     for (const f of p.fields || []) {
-      if (f.type === 'location') return f.id;
+      if (f.type === "location") return f.id;
     }
   }
   for (const f of form.fields || []) {
-    if (f.type === 'location') return f.id;
+    if (f.type === "location") return f.id;
   }
   return null;
 };
@@ -821,56 +852,101 @@ const getLocationCounts = async (req, res) => {
   try {
     const { id } = req.params;
     const { fieldId } = req.query;
-    const form = await Form.findById(id).select('createdBy responses fields pages');
-    if (!form) return res.status(404).json({ success: false, message: 'Form not found' });
-    if (form.createdBy.toString() !== req.user.id) return res.status(403).json({ success: false, message: 'Access denied' });
+    const form = await Form.findById(id).select(
+      "createdBy responses fields pages"
+    );
+    if (!form)
+      return res
+        .status(404)
+        .json({ success: false, message: "Form not found" });
+    if (form.createdBy.toString() !== req.user.id)
+      return res.status(403).json({ success: false, message: "Access denied" });
 
     const locFieldId = getLocationFieldId(form, fieldId);
-    if (!locFieldId) return res.status(400).json({ success: false, message: 'No location field found on this form' });
+    if (!locFieldId)
+      return res
+        .status(400)
+        .json({
+          success: false,
+          message: "No location field found on this form",
+        });
 
     const counts = new Map();
     for (const resp of form.responses || []) {
       const v = resp.data?.[locFieldId];
-      if (!v || typeof v !== 'object') continue;
-      const lat = Number(v.lat); const lng = Number(v.lng);
+      if (!v || typeof v !== "object") continue;
+      const lat = Number(v.lat);
+      const lng = Number(v.lng);
       if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
       const city = v.city && String(v.city).trim();
       const address = v.address && String(v.address).trim();
       const key = city || address || `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
-      const prev = counts.get(key) || { city: city || null, address: address || null, lat, lng, count: 0 };
+      const prev = counts.get(key) || {
+        city: city || null,
+        address: address || null,
+        lat,
+        lng,
+        count: 0,
+      };
       prev.count += 1;
       counts.set(key, prev);
     }
-    const items = Array.from(counts.values()).sort((a,b)=>b.count-a.count);
-    return res.json({ success: true, message: 'Location counts computed', data: { fieldId: locFieldId, items } });
+    const items = Array.from(counts.values()).sort((a, b) => b.count - a.count);
+    return res.json({
+      success: true,
+      message: "Location counts computed",
+      data: { fieldId: locFieldId, items },
+    });
   } catch (error) {
-    console.error('Error computing location counts:', error);
-    return res.status(500).json({ success: false, message: 'Server error', error: error.message });
+    console.error("Error computing location counts:", error);
+    return res
+      .status(500)
+      .json({ success: false, message: "Server error", error: error.message });
   }
 };
 
 const getLocationHeatmap = async (req, res) => {
   try {
-    const { id } = req.params; const { fieldId } = req.query;
-    const form = await Form.findById(id).select('createdBy responses fields pages');
-    if (!form) return res.status(404).json({ success: false, message: 'Form not found' });
-    if (form.createdBy.toString() !== req.user.id) return res.status(403).json({ success: false, message: 'Access denied' });
+    const { id } = req.params;
+    const { fieldId } = req.query;
+    const form = await Form.findById(id).select(
+      "createdBy responses fields pages"
+    );
+    if (!form)
+      return res
+        .status(404)
+        .json({ success: false, message: "Form not found" });
+    if (form.createdBy.toString() !== req.user.id)
+      return res.status(403).json({ success: false, message: "Access denied" });
 
     const locFieldId = getLocationFieldId(form, fieldId);
-    if (!locFieldId) return res.status(400).json({ success: false, message: 'No location field found on this form' });
+    if (!locFieldId)
+      return res
+        .status(400)
+        .json({
+          success: false,
+          message: "No location field found on this form",
+        });
 
     const points = [];
     for (const resp of form.responses || []) {
       const v = resp.data?.[locFieldId];
-      if (!v || typeof v !== 'object') continue;
-      const lat = Number(v.lat); const lng = Number(v.lng);
+      if (!v || typeof v !== "object") continue;
+      const lat = Number(v.lat);
+      const lng = Number(v.lng);
       if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
       points.push({ lat, lng });
     }
-    return res.json({ success: true, message: 'Heatmap data computed', data: { fieldId: locFieldId, points } });
+    return res.json({
+      success: true,
+      message: "Heatmap data computed",
+      data: { fieldId: locFieldId, points },
+    });
   } catch (error) {
-    console.error('Error computing heatmap data:', error);
-    return res.status(500).json({ success: false, message: 'Server error', error: error.message });
+    console.error("Error computing heatmap data:", error);
+    return res
+      .status(500)
+      .json({ success: false, message: "Server error", error: error.message });
   }
 };
 
