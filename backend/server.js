@@ -10,6 +10,7 @@ if (fs.existsSync('.env.local')) {
 }
 
 const { connectQueue } = require("./config/rabbitmq");
+const { connectRedis, client: redisClient } = require("./config/redis");
 
 const connectDB = require("./config/database");
 const userRoutes = require("./routes/userRoutes");
@@ -18,8 +19,19 @@ const formRoutes = require("./routes/formRoutes");
 const app = express();
 
 connectDB();
-
 connectQueue();
+
+// Connect Redis (best-effort)
+connectRedis()
+  .then(async () => {
+    try {
+      const pong = await redisClient.ping();
+      console.log("Redis connected:", pong);
+    } catch (e) {
+      console.error("Redis ping failed:", e.message);
+    }
+  })
+  .catch((e) => console.error("Redis connect failed:", e.message));
 
 app.use(cors({
   origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
