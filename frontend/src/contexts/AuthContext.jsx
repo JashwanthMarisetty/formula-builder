@@ -104,8 +104,6 @@ export const AuthProvider = ({ children }) => {
       const result = await signInWithPopup(auth, provider);
       const firebaseUser = result.user;
 
-      console.log("Firebase user:", firebaseUser);
-
       // Step 2: Send Google user data to your backend
       const googleUserData = {
         firebaseUid: firebaseUser.uid,
@@ -115,48 +113,38 @@ export const AuthProvider = ({ children }) => {
         provider: "google",
       };
 
-      // Step 3: Call backend to handle Google sign-in (creates user if doesn't exist)
+      // Step 3: Backend handles sign-in/sign-up
       const response = await authAPI.googleSignIn(googleUserData);
 
-      if (response.success) {
-        const { user, token, refreshToken } = response;
-
-        // Validate that we received proper tokens
-        if (!token || !refreshToken) {
-          throw new Error("Backend did not return required tokens");
-        }
-
-        // Step 4: Store backend tokens
-        localStorage.setItem("formula_token", token);
-        localStorage.setItem("formula_refresh_token", refreshToken);
-        localStorage.setItem("formula_user", JSON.stringify(user));
-
-        setUser(user);
-        setIsAuthenticated(true);
-
-        return { success: true, user };
-      } else {
+      if (!response.success) {
         throw new Error(response.message || "Google Sign-In failed");
       }
-    } catch (error) {
-      console.error("Google Sign-In error occurred:", error);
 
-      // Clear any partial data
-      authUtils.clearAuth();
-
-      // Provide more specific error messages
-      let errorMessage = "Google Sign-In failed";
-      if (error.code === "auth/popup-closed-by-user") {
-        errorMessage = "Sign-in was cancelled. Please try again.";
-      } else if (error.code === "auth/popup-blocked") {
-        errorMessage =
-          "Popup was blocked by browser. Please allow popups and try again.";
-      } else if (error.code === "auth/operation-not-allowed") {
-        errorMessage = "Google Sign-In is not enabled for this project.";
-      } else if (error.message) {
-        errorMessage = error.message;
+      // New user path: require OTP
+      if (response.requireOtp) {
+        window.location.href = `/verify-otp?email=${encodeURIComponent(googleUserData.email)}`;
+        return { success: true };
       }
 
+      // Existing user path: tokens present
+      const { user, token, refreshToken } = response;
+      if (!token || !refreshToken) {
+        throw new Error("Backend did not return required tokens");
+      }
+      localStorage.setItem("formula_token", token);
+      localStorage.setItem("formula_refresh_token", refreshToken);
+      localStorage.setItem("formula_user", JSON.stringify(user));
+      setUser(user);
+      setIsAuthenticated(true);
+      return { success: true, user };
+    } catch (error) {
+      console.error("Google Sign-In error occurred:", error);
+      authUtils.clearAuth();
+      let errorMessage = "Google Sign-In failed";
+      if (error.code === "auth/popup-closed-by-user") errorMessage = "Sign-in was cancelled. Please try again.";
+      else if (error.code === "auth/popup-blocked") errorMessage = "Popup was blocked by browser. Please allow popups and try again.";
+      else if (error.code === "auth/operation-not-allowed") errorMessage = "Google Sign-In is not enabled for this project.";
+      else if (error.message) errorMessage = error.message;
       throw new Error(errorMessage);
     } finally {
       setIsLoading(false);

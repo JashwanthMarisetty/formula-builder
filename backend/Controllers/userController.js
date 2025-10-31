@@ -246,9 +246,11 @@ const googleSignIn = async (req, res) => {
 
     // Check if user already exists by email or firebaseUid
     let user = await User.findOne({ $or: [{ email }, { firebaseUid }] });
+    let isNew = false;
 
     if (!user) {
       // New Google user; create them in the database
+      isNew = true;
       user = new User({
         firebaseUid,
         email,
@@ -258,7 +260,7 @@ const googleSignIn = async (req, res) => {
           "https://images.pexels.com/photos/91227/pexels-photo-91227.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1",
         provider: "google",
         password: "google-oauth", // Password not needed for Google Sign-In
-        emailVerified: true, // Google users have verified emails
+        emailVerified: false,
       });
       await user.save();
 
@@ -266,28 +268,39 @@ const googleSignIn = async (req, res) => {
       const subject = "Welcome to Formula 🎉";
       const text = `Hi ${name}, welcome to Formula! Your account has been created successfully via Google Sign-In.`;
       const html = `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9fafb;">
-          <div style="background-color: white; border-radius: 10px; padding: 30px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-            <h2 style="color: #7c3aed; margin-bottom: 20px;">Welcome to Formula, ${name}!</h2>
-            <p style="color: #374151; font-size: 16px; line-height: 1.6;">
-              You've successfully registered your account via Google Sign-In.
-            </p>
-            <p style="color: #374151; font-size: 16px; line-height: 1.6;">
-              Start building and sharing your forms 🚀
-            </p>
-            <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
-              <p style="color: #6b7280; font-size: 14px; margin: 0;">
-                — The Formula Team
-              </p>
-            </div>
-          </div>
-        </div>
-      `;
+        <div style=\"font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9fafb;\">\r\n          <div style=\"background-color: white; border-radius: 10px; padding: 30px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);\">\r\n            <h2 style=\"color: #7c3aed; margin-bottom: 20px;\">Welcome to Formula, ${name}!</h2>\r\n            <p style=\"color: #374151; font-size: 16px; line-height: 1.6;\">\r\n              You've successfully registered your account via Google Sign-In.\r\n            </p>\r\n            <p style=\"color: #374151; font-size: 16px; line-height: 1.6;\">\r\n              Start building and sharing your forms 🚀\r\n            </p>\r\n            <div style=\"margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;\">\r\n              <p style=\"color: #6b7280; font-size: 14px; margin: 0;\">\r\n                — The Formula Team\r\n              </p>\r\n            </div>\r\n          </div>\r\n        </div>\r\n      `;
 
       enqueueEmail({ email, subject, text, html });
+
+      // Send OTP for new Google user and require verification
+      try {
+        const code = String(Math.floor(100000 + Math.random() * 900000));
+        const key = `otp:${user._id}`;
+        await redis.set(key, code, { EX: 300, NX: true });
+        await sendEmail(
+          user.email,
+          "Your OTP Code",
+          `Your OTP is ${code}. It expires in 5 minutes.`,
+          `<p>Your OTP is <b>${code}</b>. It expires in 5 minutes.</p>`
+        );
+      } catch (e) {
+        console.warn("Failed to send OTP for Google user:", e.message);
+      }
+
+      return res.json({
+        success: true,
+        message: "Google Sign-Up successful. OTP sent.",
+        requireOtp: true,
+        user: {
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          avatar: user.avatar,
+        },
+      });
     }
 
-    // Generate tokens for the user
+    // Existing user → generate tokens for the user
     const token = generateToken(user._id);
     const refreshToken = generateRefreshToken(user._id);
 
@@ -317,9 +330,15 @@ const googleSignIn = async (req, res) => {
 const sendOtp = async (req, res) => {
   try {
     const { email } = req.body;
-    if (!email) return res.status(400).json({ success: false, message: "Email is required" });
+    if (!email)
+      return res
+        .status(400)
+        .json({ success: false, message: "Email is required" });
     const user = await User.findOne({ email });
-    if (!user) return res.status(404).json({ success: false, message: "User not found" });
+    if (!user)
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
 
     const key = `otp:${user._id}`;
     // Avoid duplicate emails: if an OTP exists, do not resend
@@ -348,14 +367,22 @@ const sendOtp = async (req, res) => {
 const verifyOtp = async (req, res) => {
   try {
     const { email, code } = req.body;
-    if (!email || !code) return res.status(400).json({ success: false, message: "Email and code are required" });
+    if (!email || !code)
+      return res
+        .status(400)
+        .json({ success: false, message: "Email and code are required" });
     const user = await User.findOne({ email });
-    if (!user) return res.status(404).json({ success: false, message: "User not found" });
+    if (!user)
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
 
     const key = `otp:${user._id}`;
     const saved = await redis.get(key);
-    if (!saved) return res.status(400).json({ success: false, message: "OTP expired" });
-    if (saved !== String(code)) return res.status(400).json({ success: false, message: "Invalid OTP" });
+    if (!saved)
+      return res.status(400).json({ success: false, message: "OTP expired" });
+    if (saved !== String(code))
+      return res.status(400).json({ success: false, message: "Invalid OTP" });
 
     await redis.del(key);
     user.emailVerified = true;
@@ -367,7 +394,12 @@ const verifyOtp = async (req, res) => {
     return res.json({
       success: true,
       message: "OTP verified",
-      user: { id: user._id, name: user.name, email: user.email, avatar: user.avatar },
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        avatar: user.avatar,
+      },
       token,
       refreshToken,
     });
