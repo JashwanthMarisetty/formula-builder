@@ -11,6 +11,7 @@ const {
 } = require("../utils/jwt");
 const { sendEmail } = require("../utils/sendEmail");
 const { enqueueEmail } = require("../utils/enqueueEmail");
+const { client: redis } = require("../config/redis");
 
 // Register a new user
 const register = async (req, res) => {
@@ -312,6 +313,63 @@ const googleSignIn = async (req, res) => {
   }
 };
 
+// OTP: generate and send
+const sendOtp = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ success: false, message: "Email is required" });
+    const user = await User.findOne({ email });
+    if (!user) return res.status(404).json({ success: false, message: "User not found" });
+
+    const code = String(Math.floor(100000 + Math.random() * 900000)); // 6-digit
+    const key = `otp:${user._id}`;
+    await redis.set(key, code, { EX: 300 }); // 5 minutes
+
+    const subject = "Your OTP Code";
+    const text = `Your OTP is ${code}. It expires in 5 minutes.`;
+    const html = `<p>Your OTP is <b>${code}</b>. It expires in 5 minutes.</p>`;
+    await sendEmail(user.email, subject, text, html);
+
+    return res.json({ success: true, message: "OTP sent to email" });
+  } catch (e) {
+    console.error("sendOtp error:", e);
+    return res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+// OTP: verify and login
+const verifyOtp = async (req, res) => {
+  try {
+    const { email, code } = req.body;
+    if (!email || !code) return res.status(400).json({ success: false, message: "Email and code are required" });
+    const user = await User.findOne({ email });
+    if (!user) return res.status(404).json({ success: false, message: "User not found" });
+
+    const key = `otp:${user._id}`;
+    const saved = await redis.get(key);
+    if (!saved) return res.status(400).json({ success: false, message: "OTP expired" });
+    if (saved !== String(code)) return res.status(400).json({ success: false, message: "Invalid OTP" });
+
+    await redis.del(key);
+    user.emailVerified = true;
+    await user.save();
+
+    const token = generateToken(user._id);
+    const refreshToken = generateRefreshToken(user._id);
+
+    return res.json({
+      success: true,
+      message: "OTP verified",
+      user: { id: user._id, name: user.name, email: user.email, avatar: user.avatar },
+      token,
+      refreshToken,
+    });
+  } catch (e) {
+    console.error("verifyOtp error:", e);
+    return res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
 module.exports = {
   register,
   login,
@@ -320,4 +378,6 @@ module.exports = {
   resetPassword,
   getMe,
   googleSignIn,
+  sendOtp,
+  verifyOtp,
 };

@@ -117,6 +117,16 @@ export const authAPI = {
     const response = await api.post('/users/google-signin', googleUserData);
     return response.data;
   },
+
+  // OTP
+  sendOtp: async (email) => {
+    const response = await api.post('/users/send-otp', { email });
+    return response.data;
+  },
+  verifyOtp: async (email, code) => {
+    const response = await api.post('/users/verify-otp', { email, code });
+    return response.data;
+  },
 };
 
 // Form API calls with explicit authorization headers
