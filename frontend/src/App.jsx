@@ -14,6 +14,7 @@ import Profile from './pages/Profile';
 import ActivityLogs from './pages/ActivityLogs';
 import PublicForm from './pages/PublicForm';
 import MapTest from './pages/MapTest';
+import VerifyOtp from './pages/VerifyOtp';
 import ProtectedRoute from './components/ProtectedRoute';
 import './index.css';
 
@@ -64,6 +65,8 @@ function App() {
               } />
               {/* Public form filling route - no authentication required */}
               <Route path="/form/:formId" element={<PublicForm />} />
+              {/* OTP verification route - public */}
+              <Route path="/verify-otp" element={<VerifyOtp />} />
               {/* Map testing route - for debugging Google Maps API issues */}
               <Route path="/map-test" element={<MapTest />} />
             </Routes>

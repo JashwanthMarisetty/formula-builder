@@ -79,15 +79,12 @@ export const AuthProvider = ({ children }) => {
 
   const register = async (email, password, name) => {
     try {
-      const response = await authAPI.register({
-        name,
-        email,
-        password,
-      });
-
+      const response = await authAPI.register({ name, email, password });
       if (response.success) {
-        // After successful registration, log the user in
-        return await login(email, password);
+        // Send OTP and navigate to verification page (no auto-login)
+        try { await authAPI.sendOtp(email); } catch {}
+        window.location.href = `/verify-otp?email=${encodeURIComponent(email)}`;
+        return { success: true };
       } else {
         throw new Error(response.message || "Registration failed");
       }

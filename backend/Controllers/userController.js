@@ -321,9 +321,16 @@ const sendOtp = async (req, res) => {
     const user = await User.findOne({ email });
     if (!user) return res.status(404).json({ success: false, message: "User not found" });
 
-    const code = String(Math.floor(100000 + Math.random() * 900000)); // 6-digit
     const key = `otp:${user._id}`;
-    await redis.set(key, code, { EX: 300 }); // 5 minutes
+    // Avoid duplicate emails: if an OTP exists, do not resend
+    const existing = await redis.get(key);
+    if (existing) {
+      return res.json({ success: true, message: "OTP already sent" });
+    }
+
+    const code = String(Math.floor(100000 + Math.random() * 900000)); // 6-digit
+    // SET with NX so concurrent requests won't overwrite or send multiple
+    await redis.set(key, code, { EX: 300, NX: true }); // 5 minutes
 
     const subject = "Your OTP Code";
     const text = `Your OTP is ${code}. It expires in 5 minutes.`;
