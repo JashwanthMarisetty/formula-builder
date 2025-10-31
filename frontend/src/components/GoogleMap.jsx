@@ -18,6 +18,10 @@ const GoogleMap = ({
   className = "",
   heatmapPoints = null,
 }) => {
+  function roundTo3(n) {
+    return Number(n.toFixed(3));
+  }
+
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const markerRef = useRef(null);
@@ -135,8 +139,8 @@ const GoogleMap = ({
           // Add click listener for location selection
           map.addListener("click", (event) => {
             const location = {
-              lat: event.latLng.lat(),
-              lng: event.latLng.lng(),
+lat: roundTo3(event.latLng.lat()),
+              lng: roundTo3(event.latLng.lng()),
             };
             setSelectedLocation(location);
             updateMarker(location);
@@ -271,8 +275,8 @@ const GoogleMap = ({
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const location = {
-          lat: position.coords.latitude,
-          lng: position.coords.longitude,
+lat: roundTo3(position.coords.latitude),
+          lng: roundTo3(position.coords.longitude),
         };
         setSelectedLocation(location);
         setUserLocation(location);

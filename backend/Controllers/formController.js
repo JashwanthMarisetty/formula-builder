@@ -435,12 +435,10 @@ const submitFormResponse = async (req, res) => {
     // 2) Basic email check (only if provided)
     const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
     if (respondentEmail && !isValidEmail(respondentEmail)) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "Please provide a valid email address",
-        });
+      return res.status(400).json({
+        success: false,
+        message: "Please provide a valid email address",
+      });
     }
 
     // 3) Resolve pages + visibility
@@ -478,20 +476,28 @@ const submitFormResponse = async (req, res) => {
       }
     }
 
-    // 5) Best-effort enrichment for location answers
+    // 5) Normalize and enrich location answers
     try {
+      function roundTo3(n) {
+        return Number(n.toFixed(3));
+      }
+
       for (const page of pages) {
         for (const field of page.fields || []) {
           if (field.type !== "location") continue;
           const loc = responseData[field.id];
           if (!loc || typeof loc !== "object") continue;
-          const lat = Number(loc.lat);
-          const lng = Number(loc.lng);
-          if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
+          const latRaw = Number(loc.lat);
+          const lngRaw = Number(loc.lng);
+          if (!Number.isFinite(latRaw) || !Number.isFinite(lngRaw)) continue;
+          const lat = roundTo3(latRaw);
+          const lng = roundTo3(lngRaw);
+          // Persist rounded coords
+          responseData[field.id] = { ...loc, lat, lng };
           const geo = await reverseGeocode(lat, lng);
           if (geo) {
             responseData[field.id] = {
-              ...loc,
+              ...responseData[field.id],
               address: loc.address || geo.address,
               city: loc.city || geo.city || null,
               state: loc.state || geo.state || null,
@@ -864,23 +870,27 @@ const getLocationCounts = async (req, res) => {
 
     const locFieldId = getLocationFieldId(form, fieldId);
     if (!locFieldId)
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "No location field found on this form",
-        });
+      return res.status(400).json({
+        success: false,
+        message: "No location field found on this form",
+      });
+
+    function roundTo3(n) {
+      return Number(n.toFixed(3));
+    }
 
     const counts = new Map();
     for (const resp of form.responses || []) {
       const v = resp.data?.[locFieldId];
       if (!v || typeof v !== "object") continue;
-      const lat = Number(v.lat);
-      const lng = Number(v.lng);
-      if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
+      const latRaw = Number(v.lat);
+      const lngRaw = Number(v.lng);
+      if (!Number.isFinite(latRaw) || !Number.isFinite(lngRaw)) continue;
+      const lat = roundTo3(latRaw);
+      const lng = roundTo3(lngRaw);
       const city = v.city && String(v.city).trim();
       const address = v.address && String(v.address).trim();
-      const key = city || address || `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+      const key = city || address || `${lat.toFixed(3)}, ${lng.toFixed(3)}`;
       const prev = counts.get(key) || {
         city: city || null,
         address: address || null,
@@ -921,20 +931,24 @@ const getLocationHeatmap = async (req, res) => {
 
     const locFieldId = getLocationFieldId(form, fieldId);
     if (!locFieldId)
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "No location field found on this form",
-        });
+      return res.status(400).json({
+        success: false,
+        message: "No location field found on this form",
+      });
+
+    function roundTo3(n) {
+      return Number(n.toFixed(3));
+    }
 
     const points = [];
     for (const resp of form.responses || []) {
       const v = resp.data?.[locFieldId];
       if (!v || typeof v !== "object") continue;
-      const lat = Number(v.lat);
-      const lng = Number(v.lng);
-      if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
+      const latRaw = Number(v.lat);
+      const lngRaw = Number(v.lng);
+      if (!Number.isFinite(latRaw) || !Number.isFinite(lngRaw)) continue;
+      const lat = roundTo3(latRaw);
+      const lng = roundTo3(lngRaw);
       points.push({ lat, lng });
     }
     return res.json({

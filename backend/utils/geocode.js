@@ -1,6 +1,6 @@
 const cache = new Map();
 
-const roundCoord = (n) => Math.round(Number(n) * 1e5) / 1e5; // ~1m precision
+const roundCoord = (n) => Math.round(Number(n) * 1e3) / 1e3; // ~110m precision
 const keyFor = (lat, lng) => `${roundCoord(lat)},${roundCoord(lng)}`;
 
 const getFetch = async () => {

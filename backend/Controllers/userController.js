@@ -13,11 +13,10 @@ const { sendEmail } = require("../utils/sendEmail");
 const { enqueueEmail } = require("../utils/enqueueEmail");
 const { client: redis } = require("../config/redis");
 
-// Register a new user
+// Register a new user (deferred creation until OTP verification)
 const register = async (req, res) => {
   try {
-    const errors = validationResult(req); // Validate request body using express-validator
-
+    const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({ errors: errors.array() });
     }
@@ -25,48 +24,46 @@ const register = async (req, res) => {
     const { name, email, password } = req.body;
 
     const existingUser = await User.findOne({ email });
-
     if (existingUser) {
       return res.status(400).json({ message: "User already exists" });
     }
 
-    const user = new User({
-      name,
-      email,
-      password, // Let the model's pre-save middleware handle hashing
-    });
+    const pendingKey = `regotp:${email}`;
+    let code;
 
-    await user.save();
+    // If a pending registration exists, reuse the same OTP
+    try {
+      const pendingStr = await redis.get(pendingKey);
+      if (pendingStr) {
+        const pending = JSON.parse(pendingStr);
+        if (pending && pending.code) {
+          code = pending.code;
+        }
+      }
+    } catch (_) {}
 
-    // ✅ Send Welcome Email
-    const subject = "Welcome to Formula 🎉";
-    const text = `Hi ${name}, welcome to Formula! Your account has been created successfully.`;
-    const html = `
-      <div style="font-family:sans-serif;">
-        <h2>Welcome to Formula, ${name}!</h2>
-        <p>You've successfully registered your account.</p>
-        <p>Start building and sharing your forms 🚀</p>
-        <p>— The Formula Team</p>
-      </div>
-    `;
+    if (!code) {
+      code = String(Math.floor(100000 + Math.random() * 900000));
+      const payload = {
+        code,
+        data: { name, email, password, provider: "local" },
+      };
+      await redis.set(pendingKey, JSON.stringify(payload), { EX: 300 });
+    }
 
-    enqueueEmail({ email, subject, text, html });
+    const subject = "Your OTP Code";
+    const text = `Your OTP is ${code}. It expires in 5 minutes.`;
+    const html = `<p>Your OTP is <b>${code}</b>. It expires in 5 minutes.</p>`;
+    await sendEmail(email, subject, text, html);
 
-    const userResponse = {
-      id: user._id,
-      name: user.name,
-      email: user.email,
-      avatar: user.avatar,
-    };
-
-    res.status(201).json({
+    return res.status(200).json({
       success: true,
-      message: "User registered successfully",
-      user: userResponse,
+      message: "OTP sent. Complete verification to create your account.",
+      requireOtp: true,
     });
   } catch (err) {
-    console.error("Error registering user:", err);
-    res.status(500).json({ message: "Server error" });
+    console.error("Error starting registration:", err);
+    return res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -249,36 +246,43 @@ const googleSignIn = async (req, res) => {
     let isNew = false;
 
     if (!user) {
-      // New Google user; create them in the database
+      // New Google user; defer DB creation until OTP verification
       isNew = true;
-      user = new User({
-        firebaseUid,
-        email,
-        name,
-        avatar:
-          photoURL ||
-          "https://images.pexels.com/photos/91227/pexels-photo-91227.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1",
-        provider: "google",
-        password: "google-oauth", // Password not needed for Google Sign-In
-        emailVerified: false,
-      });
-      await user.save();
 
-      // Send welcome email to new Google user
-      const subject = "Welcome to Formula 🎉";
-      const text = `Hi ${name}, welcome to Formula! Your account has been created successfully via Google Sign-In.`;
-      const html = `
-        <div style=\"font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9fafb;\">\r\n          <div style=\"background-color: white; border-radius: 10px; padding: 30px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);\">\r\n            <h2 style=\"color: #7c3aed; margin-bottom: 20px;\">Welcome to Formula, ${name}!</h2>\r\n            <p style=\"color: #374151; font-size: 16px; line-height: 1.6;\">\r\n              You've successfully registered your account via Google Sign-In.\r\n            </p>\r\n            <p style=\"color: #374151; font-size: 16px; line-height: 1.6;\">\r\n              Start building and sharing your forms 🚀\r\n            </p>\r\n            <div style=\"margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;\">\r\n              <p style=\"color: #6b7280; font-size: 14px; margin: 0;\">\r\n                — The Formula Team\r\n              </p>\r\n            </div>\r\n          </div>\r\n        </div>\r\n      `;
+      const pendingKey = `regotp:${email}`;
+      let code;
 
-      enqueueEmail({ email, subject, text, html });
-
-      // Send OTP for new Google user and require verification
+      // Try to reuse an existing pending OTP
       try {
-        const code = String(Math.floor(100000 + Math.random() * 900000));
-        const key = `otp:${user._id}`;
-        await redis.set(key, code, { EX: 300, NX: true });
+        const existingPendingStr = await redis.get(pendingKey);
+        if (existingPendingStr) {
+          const existingPending = JSON.parse(existingPendingStr);
+          if (existingPending && existingPending.code) {
+            code = existingPending.code;
+          }
+        }
+      } catch (_) {}
+
+      if (!code) {
+        code = String(Math.floor(100000 + Math.random() * 900000));
+        const payload = {
+          code,
+          data: {
+            name,
+            email,
+            firebaseUid,
+            avatar:
+              photoURL ||
+              "https://images.pexels.com/photos/91227/pexels-photo-91227.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1",
+            provider: "google",
+          },
+        };
+        await redis.set(pendingKey, JSON.stringify(payload), { EX: 300 });
+      }
+
+      try {
         await sendEmail(
-          user.email,
+          email,
           "Your OTP Code",
           `Your OTP is ${code}. It expires in 5 minutes.`,
           `<p>Your OTP is <b>${code}</b>. It expires in 5 minutes.</p>`
@@ -289,14 +293,8 @@ const googleSignIn = async (req, res) => {
 
       return res.json({
         success: true,
-        message: "Google Sign-Up successful. OTP sent.",
+        message: "Google Sign-Up started. OTP sent.",
         requireOtp: true,
-        user: {
-          id: user._id,
-          name: user.name,
-          email: user.email,
-          avatar: user.avatar,
-        },
       });
     }
 
@@ -335,10 +333,26 @@ const sendOtp = async (req, res) => {
         .status(400)
         .json({ success: false, message: "Email is required" });
     const user = await User.findOne({ email });
-    if (!user)
+    if (!user) {
+      // Check for pending registration and resend that OTP if present
+      const pendingKey = `regotp:${email}`;
+      try {
+        const pendingStr = await redis.get(pendingKey);
+        if (pendingStr) {
+          const pending = JSON.parse(pendingStr);
+          if (pending && pending.code) {
+            const subject = "Your OTP Code";
+            const text = `Your OTP is ${pending.code}. It expires in 5 minutes.`;
+            const html = `<p>Your OTP is <b>${pending.code}</b>. It expires in 5 minutes.</p>`;
+            await sendEmail(email, subject, text, html);
+            return res.json({ success: true, message: "OTP resent to email" });
+          }
+        }
+      } catch (_) {}
       return res
         .status(404)
         .json({ success: false, message: "User not found" });
+    }
 
     const key = `otp:${user._id}`;
     // Avoid duplicate emails: if an OTP exists, do not resend
@@ -363,7 +377,7 @@ const sendOtp = async (req, res) => {
   }
 };
 
-// OTP: verify and login
+// OTP: verify and login or complete registration
 const verifyOtp = async (req, res) => {
   try {
     const { email, code } = req.body;
@@ -371,6 +385,68 @@ const verifyOtp = async (req, res) => {
       return res
         .status(400)
         .json({ success: false, message: "Email and code are required" });
+
+    // First, check if this is a pending registration
+    const pendingKey = `regotp:${email}`;
+    try {
+      const pendingStr = await redis.get(pendingKey);
+      if (pendingStr) {
+        const pending = JSON.parse(pendingStr);
+        if (!pending || String(pending.code) !== String(code)) {
+          return res
+            .status(400)
+            .json({ success: false, message: "Invalid OTP" });
+        }
+
+        // Create the user now
+        const data = pending.data || {};
+        const avatarDefault =
+          "https://images.pexels.com/photos/91227/pexels-photo-91227.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1";
+
+        const newUser = new User({
+          name: data.name,
+          email: data.email,
+          password: data.provider === "google" ? "google-oauth" : data.password,
+          avatar: data.avatar || avatarDefault,
+          provider: data.provider || "local",
+          firebaseUid: data.firebaseUid,
+          emailVerified: true,
+        });
+        await newUser.save();
+        await redis.del(pendingKey);
+
+        // Welcome email
+        const subject = "Welcome to Formula 🎉";
+        const text = `Hi ${data.name}, welcome to Formula! Your account has been created successfully.`;
+        const html = `
+          <div style="font-family:sans-serif;">
+            <h2>Welcome to Formula, ${data.name}!</h2>
+            <p>You've successfully verified your email.</p>
+            <p>Start building and sharing your forms 🚀</p>
+            <p>— The Formula Team</p>
+          </div>
+        `;
+        enqueueEmail({ email: data.email, subject, text, html });
+
+        const token = generateToken(newUser._id);
+        const refreshToken = generateRefreshToken(newUser._id);
+
+        return res.json({
+          success: true,
+          message: "Registration completed",
+          user: {
+            id: newUser._id,
+            name: newUser.name,
+            email: newUser.email,
+            avatar: newUser.avatar,
+          },
+          token,
+          refreshToken,
+        });
+      }
+    } catch (_) {}
+
+    // Otherwise, treat as OTP verification for existing user
     const user = await User.findOne({ email });
     if (!user)
       return res

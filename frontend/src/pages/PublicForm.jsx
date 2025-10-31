@@ -582,9 +582,12 @@ const PublicForm = () => {
 
       case "location": {
         const handleLocationSelect = (location) => {
+          function roundTo3(n) {
+            return Number(n.toFixed(3));
+          }
           const locationData = {
-            lat: location.lat,
-            lng: location.lng,
+            lat: roundTo3(location.lat),
+            lng: roundTo3(location.lng),
           };
           // Backend will enrich address/city on submit
           handleInputChange(field.id, locationData);
@@ -636,8 +639,8 @@ const PublicForm = () => {
                   </div>
                   <div className="text-gray-600 space-y-1">
                     <div>
-                      <strong>Coordinates:</strong> {fieldValue.lat.toFixed(6)},{" "}
-                      {fieldValue.lng.toFixed(6)}
+                      <strong>Coordinates:</strong> {fieldValue.lat.toFixed(3)},
+                      {fieldValue.lng.toFixed(3)}
                     </div>
                     {fieldValue.address && (
                       <div>
