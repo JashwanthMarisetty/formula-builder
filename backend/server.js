@@ -5,8 +5,11 @@ const cors = require("cors");
 // Load environment variables
 // Try .env.local first (for development), then fall back to .env
 const fs = require('fs');
+const dotenv = require('dotenv');
 if (fs.existsSync('.env.local')) {
-  require("dotenv").config({ path: '.env.local' });
+  dotenv.config({ path: '.env.local' });
+} else {
+  dotenv.config();
 }
 
 const { connectQueue } = require("./config/rabbitmq");

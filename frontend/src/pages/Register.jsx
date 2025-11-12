@@ -21,14 +21,18 @@ const Register = () => {
   const handleGoogleSignUp = async () => {
     setIsLoading(true);
     setError("");
-    
+
     try {
       const result = await googleSignIn();
-      if (result.success) {
+      if (result?.requireOtp) {
+        navigate(`/verify-otp?email=${encodeURIComponent(result.email)}`);
+        return;
+      }
+      if (result?.success) {
         navigate("/dashboard");
       }
     } catch (err) {
-      console.error('Google Sign Up error:', err);
+      console.error("Google Sign Up error:", err);
       setError(err.message || "Google Sign Up failed. Please try again.");
     } finally {
       setIsLoading(false);
@@ -43,7 +47,7 @@ const Register = () => {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault(); 
+    e.preventDefault();
     setIsLoading(true);
     setError("");
 
@@ -60,11 +64,12 @@ const Register = () => {
     }
 
     try {
-      //what will this do , explain clearly 
+      //what will this do , explain clearly
       // This function will call the register method from AuthContext to handle user registration
       // It will pass the email, password, and name from the formData state
-      
-      const result = await register( // Call the register function from AuthContext, passing the necessary data 
+
+      const result = await register(
+        // Call the register function from AuthContext, passing the necessary data
         formData.email,
         formData.password,
         formData.name
@@ -73,9 +78,10 @@ const Register = () => {
         navigate("/dashboard");
       }
     } catch (err) {
-      console.error('Registration error:', err);
+      console.error("Registration error:", err);
       setError(err.message || "Registration failed. Please try again.");
-    } finally {  // Ensure loading state is reset
+    } finally {
+      // Ensure loading state is reset
       setIsLoading(false);
     }
   };

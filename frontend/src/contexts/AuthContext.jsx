@@ -81,10 +81,9 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await authAPI.register({ name, email, password });
       if (response.success) {
-        // Send OTP and navigate to verification page (no auto-login)
-        try { await authAPI.sendOtp(email); } catch {}
+        // Backend already sent OTP and staged registration; navigate to verify page
         window.location.href = `/verify-otp?email=${encodeURIComponent(email)}`;
-        return { success: true };
+        return { success: true, requireOtp: true };
       } else {
         throw new Error(response.message || "Registration failed");
       }
@@ -95,7 +94,6 @@ export const AuthProvider = ({ children }) => {
       );
     }
   };
-
   const googleSignIn = async () => {
     try {
       setIsLoading(true);

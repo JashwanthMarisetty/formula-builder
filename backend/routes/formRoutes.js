@@ -15,6 +15,7 @@ const {
   getLocationHeatmap,
 } = require("../Controllers/formController");
 const { auth } = require("../middleware/auth");
+const { submitRateLimit } = require("../middleware/submitRateLimit");
 const {
   createFormValidation,
   getFormsValidation,
@@ -41,8 +42,8 @@ router.delete("/:id", auth, deleteForm);
 // GET /api/forms/public/:id - Get public form for sharing
 router.get("/public/:id", getPublicForm);
 
-// POST /api/forms/:id/submit - Submit response to form
-router.post("/:id/submit", submitFormResponse);
+// POST /api/forms/:id/submit - Submit response to form (rate-limited)
+router.post("/:id/submit", submitRateLimit, submitFormResponse);
 
 // RESPONSE MANAGEMENT ROUTES (auth required)
 // GET /api/forms/:id/responses - Get all responses for a form

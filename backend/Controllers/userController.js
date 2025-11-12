@@ -16,54 +16,54 @@ const { client: redis } = require("../config/redis");
 // Register a new user (deferred creation until OTP verification)
 const register = async (req, res) => {
   try {
-    const errors = validationResult(req);
+    const errors = validationResult(req); // Validate request body using express-validator
+
     if (!errors.isEmpty()) {
       return res.status(400).json({ errors: errors.array() });
     }
 
     const { name, email, password } = req.body;
 
+    // If a user already exists, don't allow re-registration
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       return res.status(400).json({ message: "User already exists" });
     }
 
-    const pendingKey = `regotp:${email}`;
-    let code;
+    // Stage pending registration in Redis (expires in 15 minutes)
+    const dataKey = `reg:data:${email}`;
+    const otpKey = `reg:otp:${email}`;
 
-    // If a pending registration exists, reuse the same OTP
+    // Store minimal required data; password will be hashed by Mongoose on save
+    await redis.set(dataKey, JSON.stringify({ name, email, password, provider: 'local' }), { EX: 900 });
+
+    // Generate OTP and store
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+    await redis.set(otpKey, code, { EX: 300 });
+
+    // Send OTP email
     try {
-      const pendingStr = await redis.get(pendingKey);
-      if (pendingStr) {
-        const pending = JSON.parse(pendingStr);
-        if (pending && pending.code) {
-          code = pending.code;
-        }
-      }
-    } catch (_) {}
-
-    if (!code) {
-      code = String(Math.floor(100000 + Math.random() * 900000));
-      const payload = {
-        code,
-        data: { name, email, password, provider: "local" },
-      };
-      await redis.set(pendingKey, JSON.stringify(payload), { EX: 300 });
+      await sendEmail(
+        email,
+        "Your OTP Code",
+        `Your OTP is ${code}. It expires in 5 minutes.`,
+        `<p>Your OTP is <b>${code}</b>. It expires in 5 minutes.</p>`
+      );
+    } catch (e) {
+      console.warn("Failed to send OTP email:", e.message);
     }
 
-    const subject = "Your OTP Code";
-    const text = `Your OTP is ${code}. It expires in 5 minutes.`;
-    const html = `<p>Your OTP is <b>${code}</b>. It expires in 5 minutes.</p>`;
-    await sendEmail(email, subject, text, html);
-
-    return res.status(200).json({
+    const payload = {
       success: true,
-      message: "OTP sent. Complete verification to create your account.",
+      message: "Registration started. OTP sent to email.",
       requireOtp: true,
-    });
+    };
+    if (process.env.NODE_ENV !== 'production') payload.devCode = code;
+
+    return res.status(200).json(payload);
   } catch (err) {
-    console.error("Error starting registration:", err);
-    return res.status(500).json({ message: "Server error" });
+    console.error("Error registering user:", err);
+    res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -227,7 +227,7 @@ const getMe = async (req, res) => {
   }
 };
 
-// Google Sign-In
+// Google Sign-In (deferred user creation for new users until OTP verification)
 const googleSignIn = async (req, res) => {
   try {
     const { firebaseUid, email, name, photoURL } = req.body;
@@ -243,43 +243,26 @@ const googleSignIn = async (req, res) => {
 
     // Check if user already exists by email or firebaseUid
     let user = await User.findOne({ $or: [{ email }, { firebaseUid }] });
-    let isNew = false;
 
     if (!user) {
-      // New Google user; defer DB creation until OTP verification
-      isNew = true;
-
-      const pendingKey = `regotp:${email}`;
-      let code;
-
-      // Try to reuse an existing pending OTP
-      try {
-        const existingPendingStr = await redis.get(pendingKey);
-        if (existingPendingStr) {
-          const existingPending = JSON.parse(existingPendingStr);
-          if (existingPending && existingPending.code) {
-            code = existingPending.code;
-          }
-        }
-      } catch (_) {}
-
-      if (!code) {
-        code = String(Math.floor(100000 + Math.random() * 900000));
-        const payload = {
-          code,
-          data: {
-            name,
-            email,
-            firebaseUid,
-            avatar:
-              photoURL ||
-              "https://images.pexels.com/photos/91227/pexels-photo-91227.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1",
-            provider: "google",
-          },
-        };
-        await redis.set(pendingKey, JSON.stringify(payload), { EX: 300 });
-      }
-
+      // Stage pending Google registration
+      const dataKey = `reg:data:${email}`;
+      const otpKey = `reg:otp:${email}`;
+      await redis.set(
+        dataKey,
+        JSON.stringify({
+          provider: 'google',
+          firebaseUid,
+          email,
+          name,
+          avatar:
+            photoURL ||
+            "https://images.pexels.com/photos/91227/pexels-photo-91227.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1",
+        }),
+        { EX: 900 }
+      );
+      const code = String(Math.floor(100000 + Math.random() * 900000));
+      await redis.set(otpKey, code, { EX: 300 });
       try {
         await sendEmail(
           email,
@@ -291,11 +274,13 @@ const googleSignIn = async (req, res) => {
         console.warn("Failed to send OTP for Google user:", e.message);
       }
 
-      return res.json({
+      const payload = {
         success: true,
         message: "Google Sign-Up started. OTP sent.",
         requireOtp: true,
-      });
+      };
+      if (process.env.NODE_ENV !== 'production') payload.devCode = code;
+      return res.json(payload);
     }
 
     // Existing user → generate tokens for the user
@@ -324,145 +309,126 @@ const googleSignIn = async (req, res) => {
   }
 };
 
-// OTP: generate and send
+// OTP: generate and send (supports both pending registration and existing users)
 const sendOtp = async (req, res) => {
   try {
     const { email } = req.body;
-    if (!email)
-      return res
-        .status(400)
-        .json({ success: false, message: "Email is required" });
+    if (!email) {
+      return res.status(400).json({ success: false, message: "Email is required" });
+    }
+
     const user = await User.findOne({ email });
+
     if (!user) {
-      // Check for pending registration and resend that OTP if present
-      const pendingKey = `regotp:${email}`;
-      try {
-        const pendingStr = await redis.get(pendingKey);
-        if (pendingStr) {
-          const pending = JSON.parse(pendingStr);
-          if (pending && pending.code) {
-            const subject = "Your OTP Code";
-            const text = `Your OTP is ${pending.code}. It expires in 5 minutes.`;
-            const html = `<p>Your OTP is <b>${pending.code}</b>. It expires in 5 minutes.</p>`;
-            await sendEmail(email, subject, text, html);
-            return res.json({ success: true, message: "OTP resent to email" });
-          }
-        }
-      } catch (_) {}
-      return res
-        .status(404)
-        .json({ success: false, message: "User not found" });
+      // Resend for pending registration if staged
+      const dataKey = `reg:data:${email}`;
+      const otpKey = `reg:otp:${email}`;
+      const pending = await redis.get(dataKey);
+      if (!pending) {
+        return res.status(404).json({ success: false, message: "No pending registration for this email" });
+      }
+      const code = String(Math.floor(100000 + Math.random() * 900000));
+      await redis.set(otpKey, code, { EX: 300 });
+      await sendEmail(
+        email,
+        "Your OTP Code",
+        `Your OTP is ${code}. It expires in 5 minutes.`,
+        `<p>Your OTP is <b>${code}</b>. It expires in 5 minutes.</p>`
+      );
+      const payload = { success: true, message: "OTP sent to email" };
+      if (process.env.NODE_ENV !== 'production') payload.devCode = code;
+      return res.json(payload);
     }
 
+    // Existing user flow: always send a fresh OTP (supports resend)
     const key = `otp:${user._id}`;
-    // Avoid duplicate emails: if an OTP exists, do not resend
-    const existing = await redis.get(key);
-    if (existing) {
-      return res.json({ success: true, message: "OTP already sent" });
-    }
-
     const code = String(Math.floor(100000 + Math.random() * 900000)); // 6-digit
-    // SET with NX so concurrent requests won't overwrite or send multiple
-    await redis.set(key, code, { EX: 300, NX: true }); // 5 minutes
+    await redis.set(key, code, { EX: 300 }); // overwrite and reset TTL
 
     const subject = "Your OTP Code";
     const text = `Your OTP is ${code}. It expires in 5 minutes.`;
     const html = `<p>Your OTP is <b>${code}</b>. It expires in 5 minutes.</p>`;
     await sendEmail(user.email, subject, text, html);
 
-    return res.json({ success: true, message: "OTP sent to email" });
+    const payload = { success: true, message: "OTP sent to email" };
+    if (process.env.NODE_ENV !== 'production') payload.devCode = code;
+    return res.json(payload);
   } catch (e) {
     console.error("sendOtp error:", e);
     return res.status(500).json({ success: false, message: "Server error" });
   }
 };
 
-// OTP: verify and login or complete registration
+// OTP: verify and login or finalize registration
 const verifyOtp = async (req, res) => {
   try {
     const { email, code } = req.body;
-    if (!email || !code)
-      return res
-        .status(400)
-        .json({ success: false, message: "Email and code are required" });
+    const codeStr = String(code || '').trim();
+    if (!email || !codeStr || codeStr.length !== 6) {
+      return res.status(400).json({ success: false, message: "Email and 6-digit code are required" });
+    }
 
-    // First, check if this is a pending registration
-    const pendingKey = `regotp:${email}`;
-    try {
-      const pendingStr = await redis.get(pendingKey);
-      if (pendingStr) {
-        const pending = JSON.parse(pendingStr);
-        if (!pending || String(pending.code) !== String(code)) {
-          return res
-            .status(400)
-            .json({ success: false, message: "Invalid OTP" });
-        }
-
-        // Create the user now
-        const data = pending.data || {};
-        const avatarDefault =
-          "https://images.pexels.com/photos/91227/pexels-photo-91227.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1";
-
-        const newUser = new User({
-          name: data.name,
-          email: data.email,
-          password: data.provider === "google" ? "google-oauth" : data.password,
-          avatar: data.avatar || avatarDefault,
-          provider: data.provider || "local",
-          firebaseUid: data.firebaseUid,
-          emailVerified: true,
-        });
-        await newUser.save();
-        await redis.del(pendingKey);
-
-        // Welcome email
-        const subject = "Welcome to Formula 🎉";
-        const text = `Hi ${data.name}, welcome to Formula! Your account has been created successfully.`;
-        const html = `
-          <div style="font-family:sans-serif;">
-            <h2>Welcome to Formula, ${data.name}!</h2>
-            <p>You've successfully verified your email.</p>
-            <p>Start building and sharing your forms 🚀</p>
-            <p>— The Formula Team</p>
-          </div>
-        `;
-        enqueueEmail({ email: data.email, subject, text, html });
-
-        const token = generateToken(newUser._id);
-        const refreshToken = generateRefreshToken(newUser._id);
-
-        return res.json({
-          success: true,
-          message: "Registration completed",
-          user: {
-            id: newUser._id,
-            name: newUser.name,
-            email: newUser.email,
-            avatar: newUser.avatar,
-          },
-          token,
-          refreshToken,
-        });
+    let user = await User.findOne({ email });
+    if (user) {
+      // Existing user verification (e.g., email verify for existing account)
+      const key = `otp:${user._id}`;
+      const saved = await redis.get(key);
+      if (!saved) {
+        return res.status(400).json({ success: false, message: "OTP expired" });
       }
-    } catch (_) {}
+      if (saved !== codeStr) {
+        return res.status(400).json({ success: false, message: "Invalid OTP" });
+      }
+      await redis.del(key);
+      user.emailVerified = true;
+      await user.save();
+    } else {
+      // Pending registration path
+      const dataKey = `reg:data:${email}`;
+      const otpKey = `reg:otp:${email}`;
+      const saved = await redis.get(otpKey);
+      if (!saved) {
+        return res.status(400).json({ success: false, message: "OTP expired" });
+      }
+      if (saved !== codeStr) {
+        return res.status(400).json({ success: false, message: "Invalid OTP" });
+      }
+      const raw = await redis.get(dataKey);
+      if (!raw) {
+        return res.status(404).json({ success: false, message: "No pending registration" });
+      }
+      const pending = JSON.parse(raw);
+      // Create the user now (only include password for local provider)
+      const provider = pending.provider || 'local';
+      const doc = {
+        name: pending.name,
+        email: pending.email,
+        provider,
+        firebaseUid: pending.firebaseUid,
+        avatar: pending.avatar,
+        emailVerified: true,
+      };
+      if (provider === 'local') {
+        if (!pending.password) {
+          return res.status(400).json({ success: false, message: 'Password missing for pending registration' });
+        }
+        doc.password = pending.password;
+      }
+      user = new User(doc);
+      await user.save();
+      await redis.del(otpKey);
+      await redis.del(dataKey);
 
-    // Otherwise, treat as OTP verification for existing user
-    const user = await User.findOne({ email });
-    if (!user)
-      return res
-        .status(404)
-        .json({ success: false, message: "User not found" });
-
-    const key = `otp:${user._id}`;
-    const saved = await redis.get(key);
-    if (!saved)
-      return res.status(400).json({ success: false, message: "OTP expired" });
-    if (saved !== String(code))
-      return res.status(400).json({ success: false, message: "Invalid OTP" });
-
-    await redis.del(key);
-    user.emailVerified = true;
-    await user.save();
+      // Optionally send welcome email asynchronously
+      try {
+        const subject = "Welcome to Formula 🎉";
+        const text = `Hi ${user.name}, welcome to Formula! Your account has been created successfully.`;
+        const html = `
+          <div style=\"font-family:sans-serif;\">\n            <h2>Welcome to Formula, ${user.name}!</h2>\n            <p>You've successfully registered your account.</p>\n            <p>Start building and sharing your forms 🚀</p>\n            <p>— The Formula Team</p>\n          </div>
+        `;
+        enqueueEmail({ email: user.email, subject, text, html });
+      } catch {}
+    }
 
     const token = generateToken(user._id);
     const refreshToken = generateRefreshToken(user._id);

@@ -24,6 +24,7 @@
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.0.3",
     "nodemailer": "^7.0.9",
+    "rate-limiter-flexible": "^8.2.0",
     "redis": "^4.7.1"
   },
   "devDependencies": {
