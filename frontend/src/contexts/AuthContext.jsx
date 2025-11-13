@@ -77,9 +77,9 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const register = async (email, password, name) => {
+  const register = async (email, password, name, captchaToken) => {
     try {
-      const response = await authAPI.register({ name, email, password });
+      const response = await authAPI.register({ name, email, password, captchaToken });
       if (response.success) {
         // Backend already sent OTP and staged registration; navigate to verify page
         window.location.href = `/verify-otp?email=${encodeURIComponent(email)}`;

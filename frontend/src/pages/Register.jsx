@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { FormInputIcon as FormIcon, Eye, EyeOff } from "lucide-react";
 import { FcGoogle } from "react-icons/fc";
+import ReCAPTCHA from "react-google-recaptcha";
 
 const Register = () => {
   const [formData, setFormData] = useState({
@@ -14,6 +15,7 @@ const Register = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [captchaToken, setCaptchaToken] = useState("");
 
   const { register, googleSignIn } = useAuth();
   const navigate = useNavigate();
@@ -51,6 +53,13 @@ const Register = () => {
     setIsLoading(true);
     setError("");
 
+    if (!captchaToken) {
+      setError("Please complete the captcha");
+      setIsLoading(false);
+      return;
+    }
+
+
     if (formData.password !== formData.confirmPassword) {
       setError("Passwords do not match");
       setIsLoading(false);
@@ -72,7 +81,8 @@ const Register = () => {
         // Call the register function from AuthContext, passing the necessary data
         formData.email,
         formData.password,
-        formData.name
+        formData.name,
+        captchaToken
       );
       if (result.success) {
         navigate("/dashboard");
@@ -202,6 +212,11 @@ const Register = () => {
             >
               {isLoading ? "Creating Account..." : "Create Account"}
             </button>
+
+            <ReCAPTCHA
+              sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY}
+              onChange={(token) => setCaptchaToken(token)}
+            />
 
             <div className="relative">
               <div className="absolute inset-0 flex items-center">

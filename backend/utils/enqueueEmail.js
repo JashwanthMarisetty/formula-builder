@@ -17,4 +17,4 @@ const enqueueEmail = async (emailData) => {
   }
 };
 
-module.exports = { enqueueEmail };1
+module.exports = { enqueueEmail };

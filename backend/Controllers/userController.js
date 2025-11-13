@@ -9,6 +9,7 @@ const {
   verifyRefreshToken,
   generateRefreshToken,
 } = require("../utils/jwt");
+const verifyRecaptcha = require("../utils/verifyRecaptcha");
 const { sendEmail } = require("../utils/sendEmail");
 const { enqueueEmail } = require("../utils/enqueueEmail");
 const { client: redis } = require("../config/redis");
@@ -22,7 +23,16 @@ const register = async (req, res) => {
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { name, email, password } = req.body;
+    const { name, email, password, captchaToken } = req.body;
+
+    // 1. Verify reCAPTCHA
+    const human = await verifyRecaptcha(captchaToken);
+    if (!human) {
+      return res.status(400).json({
+        success: false,
+        message: "Captcha failed. Please confirm you're not a bot.",
+      });
+    }
 
     // If a user already exists, don't allow re-registration
     const existingUser = await User.findOne({ email });
@@ -35,7 +45,11 @@ const register = async (req, res) => {
     const otpKey = `reg:otp:${email}`;
 
     // Store minimal required data; password will be hashed by Mongoose on save
-    await redis.set(dataKey, JSON.stringify({ name, email, password, provider: 'local' }), { EX: 900 });
+    await redis.set(
+      dataKey,
+      JSON.stringify({ name, email, password, provider: "local" }),
+      { EX: 900 }
+    );
 
     // Generate OTP and store
     const code = String(Math.floor(100000 + Math.random() * 900000));
@@ -58,7 +72,7 @@ const register = async (req, res) => {
       message: "Registration started. OTP sent to email.",
       requireOtp: true,
     };
-    if (process.env.NODE_ENV !== 'production') payload.devCode = code;
+    if (process.env.NODE_ENV !== "production") payload.devCode = code;
 
     return res.status(200).json(payload);
   } catch (err) {
