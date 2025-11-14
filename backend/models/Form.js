@@ -148,33 +148,6 @@ const formSchema = new mongoose.Schema(
       },
     ],
 
-    // Array of form responses/submissions
-    responses: [
-      {
-        id: {
-          type: String,
-          required: true,
-        },
-        submittedAt: {
-          type: Date,
-          default: Date.now,
-          required: true,
-        },
-        data: {
-          type: mongoose.Schema.Types.Mixed,
-          required: true,
-        },
-        submitterIP: {
-          type: String,
-          default: "",
-        },
-        respondentEmail: {
-          type: String,
-          default: "",
-        },
-      },
-    ],
-
     // Email confirmation settings
     collectRespondentEmail: {
       type: Boolean,
@@ -186,6 +159,18 @@ const formSchema = new mongoose.Schema(
       type: Number,
       default: 0,
       min: 0,
+    },
+
+    // Denormalized response tracking (for fast dashboard queries)
+    responsesCount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+
+    lastResponseAt: {
+      type: Date,
+      default: null,
     },
 
     // Location for organizing forms (inbox, trash, archive)

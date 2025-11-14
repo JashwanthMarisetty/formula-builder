@@ -322,8 +322,8 @@ const MyForms = () => {
   ];
 
   const getFormStats = (form) => {
-    const responses = form.responses?.length || 0;
-    const views = form.views || Math.floor(Math.random() * 100) + 20;
+    const responses = form.responsesCount || 0;
+    const views = form.views || 0;
     const conversionRate = views > 0 ? ((responses / views) * 100).toFixed(1) : 0;
     return { responses, views, conversionRate };
   };

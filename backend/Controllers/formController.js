@@ -1,4 +1,5 @@
 const Form = require("../models/Form");
+const Response = require("../models/Response");
 const { validationResult } = require("express-validator");
 const { sendEmail } = require("../utils/sendEmail");
 const { isFieldVisible, buildReachablePageIds } = require("../utils/logic");
@@ -33,7 +34,6 @@ const createForm = async (req, res) => {
       title: title.trim(),
       createdBy: req.user.id,
       location: "inbox",
-      responses: [],
     };
 
     if (pages && pages.length > 0) {
@@ -395,6 +395,10 @@ const deleteForm = async (req, res) => {
       });
     }
 
+    // Delete all responses for this form (new collection)
+    await Response.deleteMany({ formId: id });
+
+    // Delete the form
     await Form.findByIdAndDelete(id);
 
     res.status(200).json({
@@ -427,10 +431,9 @@ const submitFormResponse = async (req, res) => {
 
     // 1) Find form
     const form = await Form.findById(id);
-    if (!form)
-      return res
-        .status(404)
-        .json({ success: false, message: "Form not found" });
+    if (!form) {
+      return res.status(404).json({ success: false, message: "Form not found" });
+    }
 
     // 2) Basic email check (only if provided)
     const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -441,18 +444,25 @@ const submitFormResponse = async (req, res) => {
       });
     }
 
+    // 2.1) Limit: max 5 responses per email for this form
+    if (respondentEmail) {
+      const existingCount = await Response.countDocuments({
+        formId: id,
+        respondentEmail,
+      });
+
+      if (existingCount >= 5) {
+        return res.status(400).json({
+          success: false,
+          message: "You reached the response limit",
+        });
+      }
+    }
+
     // 3) Resolve pages + visibility
-    const pages =
-      Array.isArray(form.pages) && form.pages.length
-        ? form.pages
-        : [
-            {
-              id: "page-1",
-              name: "Page 1",
-              fields: form.fields || [],
-              logic: {},
-            },
-          ];
+    const pages = Array.isArray(form.pages) && form.pages.length
+      ? form.pages
+      : [{ id: "page-1", name: "Page 1", fields: form.fields || [], logic: {} }];
 
     const reachable = buildReachablePageIds(pages, responseData);
     const visibleIds = new Set();
@@ -470,18 +480,13 @@ const submitFormResponse = async (req, res) => {
       const isEmptyString = typeof v === "string" && v.trim() === "";
       const isEmptyArray = Array.isArray(v) && v.length === 0;
       if (v == null || isEmptyString || isEmptyArray) {
-        return res
-          .status(400)
-          .json({ success: false, message: `${field.label} is required` });
+        return res.status(400).json({ success: false, message: `${field.label} is required` });
       }
     }
 
     // 5) Normalize and enrich location answers
     try {
-      function roundTo3(n) {
-        return Number(n.toFixed(3));
-      }
-
+      function roundTo3(n) { return Number(n.toFixed(3)); }
       for (const page of pages) {
         for (const field of page.fields || []) {
           if (field.type !== "location") continue;
@@ -492,7 +497,6 @@ const submitFormResponse = async (req, res) => {
           if (!Number.isFinite(latRaw) || !Number.isFinite(lngRaw)) continue;
           const lat = roundTo3(latRaw);
           const lng = roundTo3(lngRaw);
-          // Persist rounded coords
           responseData[field.id] = { ...loc, lat, lng };
           const geo = await reverseGeocode(lat, lng);
           if (geo) {
@@ -510,62 +514,53 @@ const submitFormResponse = async (req, res) => {
       console.warn("Location enrichment failed:", e?.message || e);
     }
 
-    // 6) Save response
-    const newResponse = {
-      id: Date.now().toString(),
+    // 6) Save response in separate collection
+    const newResponse = new Response({
+      formId: id,
       submittedAt: submittedAt ? new Date(submittedAt) : new Date(),
       data: responseData,
       submitterIP: req.ip || req.connection?.remoteAddress || "unknown",
       respondentEmail,
-    };
+    });
+    await newResponse.save();
 
-    form.responses.push(newResponse);
-    await form.save();
+    // 7) Update form counters (denormalized)
+    await Form.findByIdAndUpdate(id, {
+      $inc: { responsesCount: 1 },
+      lastResponseAt: newResponse.submittedAt,
+    });
 
-    // 7) Fire-and-forget confirmation email
+    // 8) Fire-and-forget confirmation email
     if (respondentEmail) {
       const subject = `Form Submission Confirmation - ${form.title}`;
-      const text =
-        "Thank you for your submission! We have received your response.";
+      const text = "Thank you for your submission! We have received your response.";
       const html = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9fafb;">
           <div style="background-color: white; border-radius: 10px; padding: 30px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-            <h2 style="color: #7c3aed; margin-bottom: 20px;">${form.title}</h2>
-            <p style="color: #374151; font-size: 16px; line-height: 1.6;">
-              "Thank you for your submission! We have received your response."}
+            <h2 style=\"color: #7c3aed; margin-bottom: 20px;\">${form.title}</h2>
+            <p style=\"color: #374151; font-size: 16px; line-height: 1.6;\">
+              Thank you for your submission! We have received your response.
             </p>
-            <div style="background-color: #f3f4f6; border-radius: 8px; padding: 20px; margin: 20px 0;">
-              <p style="color: #6b7280; font-size: 14px; margin: 0;">
-                <strong>Submission ID:</strong> ${newResponse.id}<br>
-                <strong>Submitted at:</strong> ${new Date(
-                  newResponse.submittedAt
-                ).toLocaleString()}
+            <div style=\"background-color: #f3f4f6; border-radius: 8px; padding: 20px; margin: 20px 0;\">
+              <p style=\"color: #6b7280; font-size: 14px; margin: 0;\">
+                <strong>Submission ID:</strong> ${newResponse._id}<br>
+                <strong>Submitted at:</strong> ${new Date(newResponse.submittedAt).toLocaleString()}
               </p>
             </div>
           </div>
-        </div>
-      `;
+        </div>`;
       sendEmail(respondentEmail, subject, text, html).catch((err) =>
-        console.error(
-          "Error sending confirmation email to respondent:",
-          err.message
-        )
+        console.error("Error sending confirmation email to respondent:", err.message)
       );
     }
 
-    return res
-      .status(201)
-      .json({ success: true, message: "Response submitted successfully" });
+    return res.status(201).json({ success: true, message: "Response submitted successfully" });
   } catch (error) {
     console.error("Error submitting response:", error);
     if (error.name === "CastError") {
-      return res
-        .status(400)
-        .json({ success: false, message: "Invalid form ID format" });
+      return res.status(400).json({ success: false, message: "Invalid form ID format" });
     }
-    return res
-      .status(500)
-      .json({ success: false, message: "Server error", error: error.message });
+    return res.status(500).json({ success: false, message: "Server error", error: error.message });
   }
 };
 
@@ -633,7 +628,7 @@ const getPublicForm = async (req, res) => {
   }
 };
 
-// Get responses for a specific form
+// Get responses for a specific form (from Response collection)
 const getFormResponses = async (req, res) => {
   try {
     const { id } = req.params;
@@ -646,7 +641,7 @@ const getFormResponses = async (req, res) => {
     if (!sortOrder) sortOrder = "desc";
 
     const form = await Form.findById(id)
-      .select("title responses createdBy")
+      .select("title createdBy")
       .lean();
 
     if (!form) {
@@ -669,20 +664,28 @@ const getFormResponses = async (req, res) => {
     const limitNumber = parseInt(limit, 10);
     const skip = (pageNumber - 1) * limitNumber;
 
-    // Sort responses
+    // Sort
     const sortDirection = sortOrder === "asc" ? 1 : -1;
-    const sortedResponses = form.responses.sort((a, b) => {
-      if (sortBy === "submittedAt") {
-        return (
-          sortDirection * (new Date(a.submittedAt) - new Date(b.submittedAt))
-        );
-      }
-      return 0;
-    });
+    const sortObject = { [sortBy]: sortDirection };
 
-    // Apply pagination
-    const paginatedResponses = sortedResponses.slice(skip, skip + limitNumber);
-    const totalCount = form.responses.length;
+    // Query separate collection
+    const [docs, totalCount] = await Promise.all([
+      Response.find({ formId: id })
+        .sort(sortObject)
+        .skip(skip)
+        .limit(limitNumber)
+        .lean(),
+      Response.countDocuments({ formId: id }),
+    ]);
+
+    const responses = docs.map((r) => ({
+      id: String(r._id),
+      submittedAt: r.submittedAt,
+      data: r.data,
+      submitterIP: r.submitterIP,
+      respondentEmail: r.respondentEmail,
+    }));
+
     const totalPages = Math.ceil(totalCount / limitNumber);
 
     res.status(200).json({
@@ -690,7 +693,7 @@ const getFormResponses = async (req, res) => {
       message: "Responses retrieved successfully",
       data: {
         formTitle: form.title,
-        responses: paginatedResponses,
+        responses,
         pagination: {
           currentPage: pageNumber,
           totalPages,
@@ -711,38 +714,37 @@ const getFormResponses = async (req, res) => {
   }
 };
 
-// Get a single response by ID
+// Get a single response by ID (from Response collection)
 const getResponseById = async (req, res) => {
   try {
     const { formId, responseId } = req.params;
 
     const form = await Form.findById(formId)
-      .select("title responses createdBy fields pages")
+      .select("title createdBy fields pages")
       .lean();
 
     if (!form) {
-      return res.status(404).json({
-        success: false,
-        message: "Form not found",
-      });
+      return res.status(404).json({ success: false, message: "Form not found" });
     }
 
     // Check ownership
     if (form.createdBy.toString() !== req.user.id) {
-      return res.status(403).json({
-        success: false,
-        message: "Access denied",
-      });
+      return res.status(403).json({ success: false, message: "Access denied" });
     }
 
-    const response = form.responses.find((r) => r.id === responseId);
+    const r = await Response.findOne({ _id: responseId, formId: formId }).lean();
 
-    if (!response) {
-      return res.status(404).json({
-        success: false,
-        message: "Response not found",
-      });
+    if (!r) {
+      return res.status(404).json({ success: false, message: "Response not found" });
     }
+
+    const response = {
+      id: String(r._id),
+      submittedAt: r.submittedAt,
+      data: r.data,
+      submitterIP: r.submitterIP,
+      respondentEmail: r.respondentEmail,
+    };
 
     res.status(200).json({
       success: true,
@@ -756,15 +758,11 @@ const getResponseById = async (req, res) => {
     });
   } catch (error) {
     console.error("Error retrieving response:", error);
-    res.status(500).json({
-      success: false,
-      message: "Server error",
-      error: error.message,
-    });
+    res.status(500).json({ success: false, message: "Server error", error: error.message });
   }
 };
 
-// Delete a specific response
+// Delete a specific response (from Response collection)
 const deleteResponse = async (req, res) => {
   try {
     const { formId, responseId } = req.params;
@@ -773,51 +771,35 @@ const deleteResponse = async (req, res) => {
     const form = await Form.findById(formId);
 
     if (!form) {
-      return res.status(404).json({
-        success: false,
-        message: "Form not found",
-      });
+      return res.status(404).json({ success: false, message: "Form not found" });
     }
 
     // Check ownership - only form owner can delete responses
     if (form.createdBy.toString() !== req.user.id) {
       return res.status(403).json({
         success: false,
-        message:
-          "Access denied. You can only delete responses from your own forms.",
+        message: "Access denied. You can only delete responses from your own forms.",
       });
     }
 
-    // Find the response to delete
-    const responseIndex = form.responses.findIndex((r) => r.id === responseId);
+    // Delete from Response collection
+    const deleted = await Response.findOneAndDelete({ _id: responseId, formId: formId });
 
-    if (responseIndex === -1) {
-      return res.status(404).json({
-        success: false,
-        message: "Response not found",
-      });
+    if (!deleted) {
+      return res.status(404).json({ success: false, message: "Response not found" });
     }
 
-    // Store response data for logging (optional)
-    const deletedResponse = form.responses[responseIndex];
-
-    // Remove the response from the array
-    form.responses.splice(responseIndex, 1);
-
-    // Save the form
-    await form.save();
+    // Update counters
+    await Form.findByIdAndUpdate(formId, { $inc: { responsesCount: -1 } });
 
     // Log the deletion for audit purposes
-    console.log(
-      `Response ${responseId} deleted from form ${formId} by user ${req.user.id}`
-    );
+    console.log(`Response ${responseId} deleted from form ${formId} by user ${req.user.id}`);
 
     res.status(200).json({
       success: true,
       message: "Response deleted successfully",
       data: {
         deletedResponseId: responseId,
-        remainingResponses: form.responses.length,
         deletedAt: new Date().toISOString(),
       },
     });
@@ -826,17 +808,10 @@ const deleteResponse = async (req, res) => {
 
     // Handle specific MongoDB errors
     if (error.name === "CastError") {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid form or response ID format",
-      });
+      return res.status(400).json({ success: false, message: "Invalid form or response ID format" });
     }
 
-    res.status(500).json({
-      success: false,
-      message: "Server error while deleting response",
-      error: error.message,
-    });
+    res.status(500).json({ success: false, message: "Server error while deleting response", error: error.message });
   }
 };
 
@@ -858,29 +833,23 @@ const getLocationCounts = async (req, res) => {
   try {
     const { id } = req.params;
     const { fieldId } = req.query;
-    const form = await Form.findById(id).select(
-      "createdBy responses fields pages"
-    );
+    const form = await Form.findById(id).select("createdBy fields pages");
     if (!form)
-      return res
-        .status(404)
-        .json({ success: false, message: "Form not found" });
+      return res.status(404).json({ success: false, message: "Form not found" });
     if (form.createdBy.toString() !== req.user.id)
       return res.status(403).json({ success: false, message: "Access denied" });
 
     const locFieldId = getLocationFieldId(form, fieldId);
     if (!locFieldId)
-      return res.status(400).json({
-        success: false,
-        message: "No location field found on this form",
-      });
+      return res.status(400).json({ success: false, message: "No location field found on this form" });
 
-    function roundTo3(n) {
-      return Number(n.toFixed(3));
-    }
+    function roundTo3(n) { return Number(n.toFixed(3)); }
+
+    // Fetch responses from separate collection
+    const docs = await Response.find({ formId: id }).select("data").lean();
 
     const counts = new Map();
-    for (const resp of form.responses || []) {
+    for (const resp of docs) {
       const v = resp.data?.[locFieldId];
       if (!v || typeof v !== "object") continue;
       const latRaw = Number(v.lat);
@@ -891,27 +860,15 @@ const getLocationCounts = async (req, res) => {
       const city = v.city && String(v.city).trim();
       const address = v.address && String(v.address).trim();
       const key = city || address || `${lat.toFixed(3)}, ${lng.toFixed(3)}`;
-      const prev = counts.get(key) || {
-        city: city || null,
-        address: address || null,
-        lat,
-        lng,
-        count: 0,
-      };
+      const prev = counts.get(key) || { city: city || null, address: address || null, lat, lng, count: 0 };
       prev.count += 1;
       counts.set(key, prev);
     }
     const items = Array.from(counts.values()).sort((a, b) => b.count - a.count);
-    return res.json({
-      success: true,
-      message: "Location counts computed",
-      data: { fieldId: locFieldId, items },
-    });
+    return res.json({ success: true, message: "Location counts computed", data: { fieldId: locFieldId, items } });
   } catch (error) {
     console.error("Error computing location counts:", error);
-    return res
-      .status(500)
-      .json({ success: false, message: "Server error", error: error.message });
+    return res.status(500).json({ success: false, message: "Server error", error: error.message });
   }
 };
 
@@ -919,29 +876,22 @@ const getLocationHeatmap = async (req, res) => {
   try {
     const { id } = req.params;
     const { fieldId } = req.query;
-    const form = await Form.findById(id).select(
-      "createdBy responses fields pages"
-    );
+    const form = await Form.findById(id).select("createdBy fields pages");
     if (!form)
-      return res
-        .status(404)
-        .json({ success: false, message: "Form not found" });
+      return res.status(404).json({ success: false, message: "Form not found" });
     if (form.createdBy.toString() !== req.user.id)
       return res.status(403).json({ success: false, message: "Access denied" });
 
     const locFieldId = getLocationFieldId(form, fieldId);
     if (!locFieldId)
-      return res.status(400).json({
-        success: false,
-        message: "No location field found on this form",
-      });
+      return res.status(400).json({ success: false, message: "No location field found on this form" });
 
-    function roundTo3(n) {
-      return Number(n.toFixed(3));
-    }
+    function roundTo3(n) { return Number(n.toFixed(3)); }
+
+    const docs = await Response.find({ formId: id }).select("data").lean();
 
     const points = [];
-    for (const resp of form.responses || []) {
+    for (const resp of docs) {
       const v = resp.data?.[locFieldId];
       if (!v || typeof v !== "object") continue;
       const latRaw = Number(v.lat);
@@ -951,16 +901,10 @@ const getLocationHeatmap = async (req, res) => {
       const lng = roundTo3(lngRaw);
       points.push({ lat, lng });
     }
-    return res.json({
-      success: true,
-      message: "Heatmap data computed",
-      data: { fieldId: locFieldId, points },
-    });
+    return res.json({ success: true, message: "Heatmap data computed", data: { fieldId: locFieldId, points } });
   } catch (error) {
     console.error("Error computing heatmap data:", error);
-    return res
-      .status(500)
-      .json({ success: false, message: "Server error", error: error.message });
+    return res.status(500).json({ success: false, message: "Server error", error: error.message });
   }
 };
 

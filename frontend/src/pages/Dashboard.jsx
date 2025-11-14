@@ -27,7 +27,7 @@ const Dashboard = () => {
   const stats = useMemo(() => {
     const inboxForms = forms.filter((form) => form.location === "inbox");
     const totalResponses = forms.reduce(
-      (sum, form) => sum + (form.responses?.length || 0),
+      (sum, form) => sum + (form.responsesCount || 0),
       0
     );
     const totalViews = forms.reduce((sum, form) => sum + (form.views || 0), 0);
@@ -179,7 +179,7 @@ const Dashboard = () => {
                     </h3>
                   </div>
                   <div className="flex items-center justify-between text-xs sm:text-sm text-gray-500 mb-3">
-                    <span>{form.responses?.length || 0} responses</span>
+                    <span>{form.responsesCount || 0} responses</span>
                     <span>{new Date(form.updatedAt).toLocaleDateString()}</span>
                   </div>
                   <div className="flex space-x-2">

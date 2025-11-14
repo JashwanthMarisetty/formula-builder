@@ -75,7 +75,7 @@ export const FormProvider = ({ children }) => {
             fields: form.fields || [],
             pages: pages,
             visibility: 'private',
-            responses: form.responses || [],
+            responsesCount: form.responsesCount || 0, // Use count from backend
             createdAt: form.createdAt,
             updatedAt: form.updatedAt,
             location: form.location || 'inbox',
@@ -149,7 +149,7 @@ export const FormProvider = ({ children }) => {
           fields: formData.fields || [],
           pages: [{ id: 'page-1', name: 'Page 1', fields: formData.fields || [] }],
           visibility: 'private',
-          responses: formData.responses || [],
+          responsesCount: formData.responsesCount || 0,
           createdAt: formData.createdAt,
           updatedAt: formData.updatedAt,
           location: formData.location || 'inbox',
@@ -173,7 +173,7 @@ export const FormProvider = ({ children }) => {
         fields: [],
         pages: [{ id: 'page-1', name: 'Page 1', fields: [] }],
         visibility: 'private',
-        responses: [],
+        responsesCount: 0,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         location: 'inbox'
