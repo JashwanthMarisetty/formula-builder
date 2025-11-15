@@ -4,6 +4,7 @@ const { validationResult } = require("express-validator");
 const { sendEmail } = require("../utils/sendEmail");
 const { isFieldVisible, buildReachablePageIds } = require("../utils/logic");
 const { reverseGeocode } = require("../utils/geocode");
+const { client: redis } = require("../config/redis");
 
 // CREATE - Create a new form
 const createForm = async (req, res) => {
@@ -238,15 +239,6 @@ const getFormById = async (req, res) => {
     }
 
     // Return form data - frontend calculates stats as needed
-
-    // Track form view (optional analytics)
-    // Note: In production, you might want to track this separately
-    // to avoid updating the form document on every view
-    await Form.findByIdAndUpdate(
-      id,
-      { $inc: { views: 1 } }, // Increment view count
-      { new: false } // Don't return updated document
-    );
 
     // Send success response
     res.status(200).json({
@@ -601,9 +593,6 @@ const getPublicForm = async (req, res) => {
     // Add name field for frontend compatibility
     formData.name = formData.title;
 
-    // Increment view count
-    await Form.findByIdAndUpdate(id, { $inc: { views: 1 } });
-
     res.status(200).json({
       success: true,
       message: "Form retrieved successfully",
@@ -908,6 +897,39 @@ const getLocationHeatmap = async (req, res) => {
   }
 };
 
+// Track unique views using Redis (IP based only)
+const trackViewsController = async (req, res) => {
+  try {
+    const formId = req.params.id;
+    const ip = req.ip; // Express will populate this
+
+    if (!ip) {
+      return res.status(400).json({ success: false, message: "IP address required" });
+    }
+
+    const ipKey = `view:${formId}:ip:${ip}`;
+
+    const viewedByIp = await redis.get(ipKey);
+
+    // If already viewed -> return success but don't increment
+    if (viewedByIp) {
+      return res.json({ success: true, message: "View already counted" });
+    }
+
+    // Mark view for 1 hour (3600 seconds)
+    await redis.set(ipKey, 1, { EX: 3600 });
+
+    // Increment Redis counter for this form
+    await redis.incr(`views:${formId}`);
+
+    return res.json({ success: true, message: "View counted" });
+  } catch (err) {
+    console.error("View tracking error:", err);
+    // Don't break the user experience if tracking fails
+    return res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
 module.exports = {
   createForm,
   getAllForms,
@@ -921,4 +943,5 @@ module.exports = {
   deleteResponse,
   getLocationCounts,
   getLocationHeatmap,
+  trackViewsController,
 };

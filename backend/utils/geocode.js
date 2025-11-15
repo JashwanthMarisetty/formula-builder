@@ -6,7 +6,6 @@ const cache = new Map();
 // Cache key helpers
 const roundCoord = (n) => Math.round(Number(n) * 1e5) / 1e5; // ~1m precision
 const keyFor = (lat, lng) => `${roundCoord(lat)},${roundCoord(lng)}`;
-const REDIS_PREFIX = "geo:";
 const TTL_SECONDS = parseInt(
   process.env.GEOCODE_CACHE_TTL_SECONDS || "2592000",
   10
@@ -23,7 +22,7 @@ const getFetch = async () => {
 async function getFromRedis(key) {
   try {
     await connectRedis();
-    const raw = await redis.get(REDIS_PREFIX + key);
+    const raw = await redis.get("geo:" + key);
     return raw ? JSON.parse(raw) : null;
   } catch {
     return null;
@@ -33,7 +32,7 @@ async function getFromRedis(key) {
 async function setInRedis(key, value) {
   try {
     await connectRedis();
-    await redis.set(REDIS_PREFIX + key, JSON.stringify(value), {
+    await redis.set("geo:" + key, JSON.stringify(value), {
       EX: TTL_SECONDS,
     });
   } catch {}

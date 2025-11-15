@@ -405,35 +405,31 @@ const FormResponses = () => {
       );
     }
 
-    responses.forEach(response => {
-      locationFields.forEach(field => {
+    responses.forEach((response) => {
+      locationFields.forEach((field) => {
         const locationValue = response.data[field.id];
-        
-        // Handle both old JSON string format and new object format
-        let parsedLocation = null;
-        if (locationValue) {
-          if (typeof locationValue === 'object' && locationValue.lat && locationValue.lng) {
-            // New object format
-            parsedLocation = locationValue;
-          } else if (typeof locationValue === 'string') {
-            // Old JSON string format
-            try {
-              parsedLocation = JSON.parse(locationValue);
-            } catch (e) {
-              console.warn('Failed to parse location data:', locationValue);
-            }
-          }
-        }
-        
-        if (parsedLocation && parsedLocation.lat && parsedLocation.lng) {
+
+        // Assume only object format: { lat, lng, address?, ... }
+        if (
+          locationValue &&
+          typeof locationValue === "object" &&
+          locationValue.lat != null &&
+          locationValue.lng != null
+        ) {
+          const lat = parseFloat(locationValue.lat);
+          const lng = parseFloat(locationValue.lng);
+          if (Number.isNaN(lat) || Number.isNaN(lng)) return;
+
           locationData.push({
             id: `${response.id}-${field.id}`,
-            lat: parseFloat(parsedLocation.lat),
-            lng: parseFloat(parsedLocation.lng),
+            lat,
+            lng,
             fieldLabel: field.label,
             submittedAt: response.submittedAt,
             responseId: response.id,
-            address: parsedLocation.address || `${parsedLocation.lat.toFixed(6)}, ${parsedLocation.lng.toFixed(6)}`
+            address:
+              locationValue.address ||
+              `${lat.toFixed(6)}, ${lng.toFixed(6)}`,
           });
         }
       });

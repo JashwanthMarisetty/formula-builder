@@ -81,7 +81,7 @@ const PublicForm = () => {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [respondentEmail, setRespondentEmail] = useState("");
 
-  // Load the public form
+  // Load the public form and track a view
   useEffect(() => {
     const loadForm = async () => {
       try {
@@ -109,6 +109,14 @@ const PublicForm = () => {
             });
           });
           setFormData(initialData);
+
+          // Track a view for this public form (IP will be captured on the server)
+          try {
+            await formAPI.trackFormView(formId);
+          } catch (viewError) {
+            // View tracking failure should not block the form
+            console.warn("View tracking failed:", viewError?.message || viewError);
+          }
         }
       } catch (error) {
         console.error("Error loading public form:", error);

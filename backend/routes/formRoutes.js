@@ -13,6 +13,7 @@ const {
   deleteResponse,
   getLocationCounts,
   getLocationHeatmap,
+  trackViewsController,
 } = require("../Controllers/formController");
 const { auth } = require("../middleware/auth");
 const { submitRateLimit } = require("../middleware/submitRateLimit");
@@ -41,6 +42,9 @@ router.delete("/:id", auth, deleteForm);
 // PUBLIC ROUTES (no auth required)
 // GET /api/forms/public/:id - Get public form for sharing
 router.get("/public/:id", getPublicForm);
+
+// POST /api/forms/:id/view - Track a view for a form (public)
+router.post("/:id/view", trackViewsController);
 
 // POST /api/forms/:id/submit - Submit response to form (rate-limited)
 router.post("/:id/submit", submitRateLimit, submitFormResponse);

@@ -275,6 +275,13 @@ export const formAPI = {
     return response.data;
   },
 
+  // Track a view for a public form (no auth required)
+  // The server will capture the IP address from the request.
+  trackFormView: async (formId) => {
+    const response = await api.post(`/forms/${formId}/view`);
+    return response.data;
+  },
+
   // Get all responses for a form (requires authentication)
   getFormResponses: async (formId, params = {}) => {
     const token = getToken();

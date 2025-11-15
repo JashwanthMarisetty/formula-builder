@@ -53,6 +53,9 @@ const PORT = process.env.PORT || 5000;
 //   res.status(404).json({ message: "Route not found" });
 // });
 
+// Load cron jobs (e.g., syncing Redis view counters to MongoDB)
+require("./cron/syncViews");
+
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
   console.log(`MongoDB URI: ${process.env.MONGODB_URI}`);
