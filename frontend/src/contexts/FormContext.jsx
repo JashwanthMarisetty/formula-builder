@@ -454,9 +454,6 @@ export const FormProvider = ({ children }) => {
     const form = forms.find(f => f.id === formId);
     if (!form || form.pages.length <= 1) return;
     
-    const pageToDelete = form.pages[pageIndex];
-    const fieldsToDelete = pageToDelete.fields.map(f => f.id);
-    
     const newPages = form.pages.filter((_, index) => index !== pageIndex);
     updateForm(formId, {
       pages: newPages

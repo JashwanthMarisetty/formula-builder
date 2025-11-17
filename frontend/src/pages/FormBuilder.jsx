@@ -44,21 +44,11 @@ const FormBuilder = () => {
   const [isPropertyPanelOpen, setIsPropertyPanelOpen] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const [showAutoSaved, setShowAutoSaved] = useState(false);
-  const [autoSaveTimeout, setAutoSaveTimeout] = useState(null);
   const [mobileActiveTab, setMobileActiveTab] = useState('form'); // 'fields', 'form', 'props'
   const [showSaveSuccess, setShowSaveSuccess] = useState(false);
   const [isCreatingForm, setIsCreatingForm] = useState(false);
   const [showRulesModal, setShowRulesModal] = useState(false);
   const navigationRef = useRef(false);
-
-  // Cleanup auto-save timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (autoSaveTimeout) {
-        clearTimeout(autoSaveTimeout);
-      }
-    };
-  }, [autoSaveTimeout]);
 
   // Form initialization effect
   useEffect(() => {

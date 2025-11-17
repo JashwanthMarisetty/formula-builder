@@ -15,13 +15,11 @@ import {
   X,
   BarChart3,
   Search,
-  Filter,
   CheckSquare,
   Square,
   Calendar,
   Users,
   TrendingUp,
-  Copy,
   ExternalLink,
   Check
 } from 'lucide-react';
@@ -47,7 +45,6 @@ const MyForms = () => {
   
   const [activeTab, setActiveTab] = useState('inbox');
   const [showMenu, setShowMenu] = useState(null);
-  const [showConfirmDialog, setShowConfirmDialog] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('updatedAt');
   const [sortOrder, setSortOrder] = useState('desc');
@@ -488,17 +485,17 @@ const MyForms = () => {
               <div className="text-center py-12">
                 <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">
-                  {searchTerm || showAdvancedFilters ? 'No forms found' : `No forms in ${activeTab}`}
+                  {searchTerm ? 'No forms found' : `No forms in ${activeTab}`}
                 </h3>
                 <p className="text-gray-600 mb-4">
-                  {searchTerm || showAdvancedFilters
+                  {searchTerm
                     ? 'Try adjusting your search terms or filters'
                     : activeTab === 'inbox' 
                       ? 'Create your first form to get started'
                       : `No forms have been moved to ${activeTab} yet`
                   }
                 </p>
-                {activeTab === 'inbox' && !searchTerm && !showAdvancedFilters && (
+                {activeTab === 'inbox' && !searchTerm && (
                   <Link
                     to="/form-builder"
                     className="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700 transition-colors"
