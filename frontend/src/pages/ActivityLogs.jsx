@@ -4,7 +4,6 @@ import Navbar from '../components/Navbar';
 import { 
   ArrowLeft, 
   Calendar, 
-  Filter, 
   Search,
   FileText,
   Edit,
@@ -234,10 +233,9 @@ const ActivityLogs = () => {
                       key={activity.id}
                       className={`flex items-start space-x-4 p-4 border border-gray-200 rounded-lg transition-all duration-200 ${
                         activity.formId && activity.type !== 'delete' 
-                          ? 'hover:bg-gray-50 hover:border-purple-300 hover:shadow-md cursor-pointer transform hover:scale-[1.02]' 
+                          ? 'hover:bg-gray-50 hover:border-purple-300 hover:shadow-md transform hover:scale-[1.02]' 
                           : 'hover:bg-gray-50'
                       }`}
-                      onClick={() => handleActivityClick(activity)}
                     >
                       <div className={`w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center ${activity.color}`}>
                         <IconComponent className="w-5 h-5" />
@@ -251,14 +249,11 @@ const ActivityLogs = () => {
                           <span className="text-sm text-gray-500">•</span>
                           <span className={`text-sm ${
                             activity.formId && activity.type !== 'delete' 
-                              ? 'text-purple-600 hover:text-purple-700' 
+                              ? 'text-purple-600' 
                               : 'text-gray-500'
                           }`}>
                             {activity.formName}
                           </span>
-                          {activity.formId && activity.type !== 'delete' && (
-                            <span className="text-xs text-gray-400">Click to view form</span>
-                          )}
                         </div>
                       </div>
                       <div className="text-xs text-gray-400">

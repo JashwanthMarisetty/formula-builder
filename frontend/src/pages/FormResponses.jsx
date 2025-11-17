@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useForm } from '../contexts/FormContext';
 import { formAPI } from '../services/api';
-import { filterResponsesByDate, getDateRangeDescription } from '../utils/dateFilters';
+import { filterResponsesByDate } from '../utils/dateFilters';
 import Navbar from '../components/Navbar';
 import GoogleMap from '../components/GoogleMap';
 import { ArrowLeft, Download, Filter, Calendar, Search, BarChart3, PieChart, TrendingUp, Users, Loader2, Trash2, AlertTriangle, MapPin } from 'lucide-react';
@@ -23,7 +23,6 @@ const FormResponses = () => {
   const [responseError, setResponseError] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalResponses, setTotalResponses] = useState(0);
-  const [hasMore, setHasMore] = useState(false);
   const [sortOrder, setSortOrder] = useState('desc');
   const [totalPages, setTotalPages] = useState(1);
   // Location analytics
@@ -53,7 +52,6 @@ const FormResponses = () => {
           // Replace responses for numbered pagination
           setResponses(result.data.responses);
           setTotalResponses(result.data.pagination.totalCount);
-          setHasMore(result.data.pagination.hasNextPage);
           setTotalPages(result.data.pagination.totalPages);
         }
       } catch (error) {
