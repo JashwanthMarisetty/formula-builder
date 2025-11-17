@@ -20,6 +20,14 @@ export const FormProvider = ({ children }) => {
   const [forms, setForms] = useState([]);
   const [currentForm, setCurrentForm] = useState(null);
   const [isLoadingForms, setIsLoadingForms] = useState(false);
+  const [pagination, setPagination] = useState({
+    currentPage: 1,
+    totalPages: 1,
+    totalCount: 0,
+    limit: 8,
+    hasNextPage: false,
+    hasPreviousPage: false
+  });
   const [chatbotSettings, setChatbotSettings] = useState({
     enabled: false,
     welcomeMessage: 'Hi! How can I help you today?',
@@ -28,7 +36,7 @@ export const FormProvider = ({ children }) => {
   });
 
   // Load forms from backend API
-  const loadForms = useCallback(async () => {
+  const loadForms = useCallback(async (params = {}) => {
     const token = localStorage.getItem('formula_token');
     
     if (!token) {
@@ -38,12 +46,12 @@ export const FormProvider = ({ children }) => {
 
     try {
       setIsLoadingForms(true);
-      const response = await formAPI.getAllForms();
+      const response = await formAPI.getAllForms(params);
       
       if (response.success) {
         // Transform backend form structure to match frontend structure
         // Handle both possible response formats
-        const formsArray = response.data?.forms || response.forms || [];
+        const formsArray = response.data?.forms || [];
         
         const transformedForms = formsArray.map(form => {
           // Properly handle multi-page forms from backend
@@ -66,18 +74,22 @@ export const FormProvider = ({ children }) => {
             title: form.title || 'Untitled Form', // Handle empty titles
             fields: form.fields || [],
             pages: pages,
-            status: form.status,
             visibility: 'private',
-            responses: form.responses || [],
+            responsesCount: form.responsesCount || 0, // Use count from backend
             createdAt: form.createdAt,
             updatedAt: form.updatedAt,
-            location: 'inbox',
+            location: form.location || 'inbox',
             views: form.views || 0,
             createdBy: form.createdBy
           };
         });
         
         setForms(transformedForms);
+        
+        // Update pagination metadata
+        if (response.data?.pagination) {
+          setPagination(response.data.pagination);
+        }
       }
     } catch (error) {
       console.error('Failed to load forms:', error);
@@ -121,8 +133,7 @@ export const FormProvider = ({ children }) => {
       // Create form on backend
       const backendFormData = {
         title: formData.name || formData.title || 'Untitled Form',
-        fields: [],
-        status: 'draft'
+        fields: []
       };
       
       const response = await formAPI.createForm(backendFormData);
@@ -137,12 +148,11 @@ export const FormProvider = ({ children }) => {
           title: formData.title,
           fields: formData.fields || [],
           pages: [{ id: 'page-1', name: 'Page 1', fields: formData.fields || [] }],
-          status: formData.status,
           visibility: 'private',
-          responses: formData.responses || [],
+          responsesCount: formData.responsesCount || 0,
           createdAt: formData.createdAt,
           updatedAt: formData.updatedAt,
-          location: 'inbox',
+          location: formData.location || 'inbox',
           views: formData.views || 0,
           createdBy: formData.createdBy
         };
@@ -162,9 +172,8 @@ export const FormProvider = ({ children }) => {
         name: formData.name || 'Untitled Form',
         fields: [],
         pages: [{ id: 'page-1', name: 'Page 1', fields: [] }],
-        status: 'draft',
         visibility: 'private',
-        responses: [],
+        responsesCount: 0,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         location: 'inbox'
@@ -203,7 +212,7 @@ export const FormProvider = ({ children }) => {
       // Prepare data for backend with the updated form data
       const backendData = {
         title: updatedFormData.name || updatedFormData.title,
-        status: updatedFormData.status,
+        location: updatedFormData.location,
         pages: updatedFormData.pages || [],
         // Also include flat fields for backwards compatibility
         fields: updatedFormData.pages ? updatedFormData.pages.flatMap(page => page.fields || []) : []
@@ -220,15 +229,19 @@ export const FormProvider = ({ children }) => {
       }
     } catch (error) {
       console.error('Error updating form:', error);
-      // Don't revert local changes - keep the optimistic update
-      // This ensures the UI remains responsive even if backend fails
     }
   }, [currentForm, forms]);
 
-  const deleteForm = useCallback((formId) => {
-    setForms(prev => prev.filter(form => form.id !== formId));
-    if (currentForm && currentForm.id === formId) {
-      setCurrentForm(null);
+  const deleteForm = useCallback(async (formId) => {
+    try {
+      await formAPI.deleteForm(formId);
+      setForms(prev => prev.filter(form => form.id !== formId));
+      if (currentForm && currentForm.id === formId) {
+        setCurrentForm(null);
+      }
+    } catch (error) {
+      console.error('Failed to delete form from server:', error);
+      throw error;
     }
   }, [currentForm]);
 
@@ -291,7 +304,6 @@ export const FormProvider = ({ children }) => {
     try {
       const backendData = {
         title: updatedFormData.name || updatedFormData.title,
-        status: updatedFormData.status,
         pages: updatedFormData.pages || [],
         fields: updatedFormData.pages ? updatedFormData.pages.flatMap(page => page.fields || []) : []
       };
@@ -361,7 +373,6 @@ export const FormProvider = ({ children }) => {
       if (formToSave) {
         const backendData = {
           title: formToSave.name || formToSave.title,
-          status: formToSave.status,
           pages: formToSave.pages || [],
           fields: formToSave.pages ? formToSave.pages.flatMap(page => page.fields || []) : []
         };
@@ -375,14 +386,6 @@ export const FormProvider = ({ children }) => {
   }, [currentForm, forms]);
 
   const removeField = useCallback(async (formId, pageId, fieldId) => {
-    // Remove related conditions when field is deleted
-    setFieldConditions(prev => prev.filter(condition => 
-      condition.triggerFieldId !== fieldId && condition.targetFieldId !== fieldId
-    ));
-    setPageConditions(prev => prev.filter(condition => 
-      condition.triggerFieldId !== fieldId
-    ));
-    
     // Update local state immediately for responsive UI
     const updatedForms = forms.map(form => 
       form.id === formId 
@@ -420,7 +423,6 @@ export const FormProvider = ({ children }) => {
       if (formToSave) {
         const backendData = {
           title: formToSave.name || formToSave.title,
-          status: formToSave.status,
           pages: formToSave.pages || [],
           fields: formToSave.pages ? formToSave.pages.flatMap(page => page.fields || []) : []
         };
@@ -470,6 +472,7 @@ export const FormProvider = ({ children }) => {
     chatbotSettings,
     setChatbotSettings,
     isLoadingForms,
+    pagination,
     loadForms,
     createForm,
     updateForm,
@@ -488,6 +491,7 @@ export const FormProvider = ({ children }) => {
     chatbotSettings,
     setChatbotSettings,
     isLoadingForms,
+    pagination,
     loadForms,
     createForm,
     updateForm,

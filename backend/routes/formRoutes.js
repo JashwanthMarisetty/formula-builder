@@ -10,9 +10,13 @@ const {
   getPublicForm,
   getFormResponses,
   getResponseById,
-  deleteResponse
+  deleteResponse,
+  getLocationCounts,
+  getLocationHeatmap,
+  trackViewsController,
 } = require("../Controllers/formController");
 const { auth } = require("../middleware/auth");
+const { submitRateLimit } = require("../middleware/submitRateLimit");
 const {
   createFormValidation,
   getFormsValidation,
@@ -39,8 +43,11 @@ router.delete("/:id", auth, deleteForm);
 // GET /api/forms/public/:id - Get public form for sharing
 router.get("/public/:id", getPublicForm);
 
-// POST /api/forms/:id/submit - Submit response to form
-router.post("/:id/submit", submitFormResponse);
+// POST /api/forms/:id/view - Track a view for a form (public)
+router.post("/:id/view", trackViewsController);
+
+// POST /api/forms/:id/submit - Submit response to form (rate-limited)
+router.post("/:id/submit", submitRateLimit, submitFormResponse);
 
 // RESPONSE MANAGEMENT ROUTES (auth required)
 // GET /api/forms/:id/responses - Get all responses for a form
@@ -51,5 +58,9 @@ router.get("/:formId/responses/:responseId", auth, getResponseById);
 
 // DELETE /api/forms/:formId/responses/:responseId - Delete a specific response
 router.delete("/:formId/responses/:responseId", auth, deleteResponse);
+
+// ANALYTICS
+router.get("/:id/analytics/location-counts", auth, getLocationCounts);
+router.get("/:id/analytics/heatmap", auth, getLocationHeatmap);
 
 module.exports = router;

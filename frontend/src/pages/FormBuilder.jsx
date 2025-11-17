@@ -7,6 +7,7 @@ import FieldPalette from '../components/FormBuilder/FieldPalette';
 import FormCanvas from '../components/FormBuilder/FormCanvas';
 import PropertyPanel from '../components/FormBuilder/PropertyPanel';
 import ShareModal from '../components/ShareModal';
+import RulesEditorModal from '../components/FormBuilder/RulesEditor';
 import { 
   Save, 
   Eye, 
@@ -18,7 +19,8 @@ import {
   Trash2,
   Check,
   Layers,
-  Edit3
+  Edit3,
+  GitBranch
 } from 'lucide-react';
 
 const FormBuilder = () => {
@@ -46,6 +48,7 @@ const FormBuilder = () => {
   const [mobileActiveTab, setMobileActiveTab] = useState('form'); // 'fields', 'form', 'props'
   const [showSaveSuccess, setShowSaveSuccess] = useState(false);
   const [isCreatingForm, setIsCreatingForm] = useState(false);
+  const [showRulesModal, setShowRulesModal] = useState(false);
   const navigationRef = useRef(false);
 
   // Cleanup auto-save timeout on unmount
@@ -312,6 +315,14 @@ const FormBuilder = () => {
             {/* Right Section: Action buttons */}
             <div className="flex items-center space-x-1 sm:space-x-2 lg:space-x-4 flex-1 justify-end">
               <button
+                onClick={() => setShowRulesModal(true)}
+                className="hidden sm:flex items-center space-x-1 lg:space-x-2 bg-blue-600 text-white px-2 lg:px-4 py-1 lg:py-2 rounded-lg hover:bg-blue-700 transition-colors text-xs lg:text-sm"
+                title="Form Rules"
+              >
+                <GitBranch className="w-4 h-4" />
+                <span className="hidden lg:inline">Rules</span>
+              </button>
+              <button
                 onClick={() => setShowShareModal(true)}
                 className="hidden sm:flex items-center space-x-1 lg:space-x-2 bg-green-600 text-white px-2 lg:px-4 py-1 lg:py-2 rounded-lg hover:bg-green-700 transition-colors text-xs lg:text-sm"
               >
@@ -548,6 +559,17 @@ const FormBuilder = () => {
       
       {showShareModal && (
         <ShareModal form={currentForm} onClose={() => setShowShareModal(false)} />
+      )}
+
+      {showRulesModal && (
+        <RulesEditorModal
+          form={currentForm}
+          onClose={() => setShowRulesModal(false)}
+          onSave={(nextPages) => {
+            updateForm(currentForm.id, { pages: nextPages });
+            setShowRulesModal(false);
+          }}
+        />
       )}
     </div>
   );

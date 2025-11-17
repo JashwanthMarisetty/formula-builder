@@ -77,17 +77,13 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const register = async (email, password, name) => {
+  const register = async (email, password, name, captchaToken) => {
     try {
-      const response = await authAPI.register({
-        name,
-        email,
-        password,
-      });
-
+      const response = await authAPI.register({ name, email, password, captchaToken });
       if (response.success) {
-        // After successful registration, log the user in
-        return await login(email, password);
+        // Backend already sent OTP and staged registration; navigate to verify page
+        window.location.href = `/verify-otp?email=${encodeURIComponent(email)}`;
+        return { success: true, requireOtp: true };
       } else {
         throw new Error(response.message || "Registration failed");
       }
@@ -98,7 +94,6 @@ export const AuthProvider = ({ children }) => {
       );
     }
   };
-
   const googleSignIn = async () => {
     try {
       setIsLoading(true);
@@ -106,8 +101,6 @@ export const AuthProvider = ({ children }) => {
       // Step 1: Authenticate with Firebase/Google
       const result = await signInWithPopup(auth, provider);
       const firebaseUser = result.user;
-
-      console.log("Firebase user:", firebaseUser);
 
       // Step 2: Send Google user data to your backend
       const googleUserData = {
@@ -118,48 +111,38 @@ export const AuthProvider = ({ children }) => {
         provider: "google",
       };
 
-      // Step 3: Call backend to handle Google sign-in (creates user if doesn't exist)
+      // Step 3: Backend handles sign-in/sign-up
       const response = await authAPI.googleSignIn(googleUserData);
 
-      if (response.success) {
-        const { user, token, refreshToken } = response;
-
-        // Validate that we received proper tokens
-        if (!token || !refreshToken) {
-          throw new Error("Backend did not return required tokens");
-        }
-
-        // Step 4: Store backend tokens
-        localStorage.setItem("formula_token", token);
-        localStorage.setItem("formula_refresh_token", refreshToken);
-        localStorage.setItem("formula_user", JSON.stringify(user));
-
-        setUser(user);
-        setIsAuthenticated(true);
-
-        return { success: true, user };
-      } else {
+      if (!response.success) {
         throw new Error(response.message || "Google Sign-In failed");
       }
-    } catch (error) {
-      console.error("Google Sign-In error occurred:", error);
 
-      // Clear any partial data
-      authUtils.clearAuth();
-
-      // Provide more specific error messages
-      let errorMessage = "Google Sign-In failed";
-      if (error.code === "auth/popup-closed-by-user") {
-        errorMessage = "Sign-in was cancelled. Please try again.";
-      } else if (error.code === "auth/popup-blocked") {
-        errorMessage =
-          "Popup was blocked by browser. Please allow popups and try again.";
-      } else if (error.code === "auth/operation-not-allowed") {
-        errorMessage = "Google Sign-In is not enabled for this project.";
-      } else if (error.message) {
-        errorMessage = error.message;
+      // New user path: require OTP
+      if (response.requireOtp) {
+        window.location.href = `/verify-otp?email=${encodeURIComponent(googleUserData.email)}`;
+        return { success: true };
       }
 
+      // Existing user path: tokens present
+      const { user, token, refreshToken } = response;
+      if (!token || !refreshToken) {
+        throw new Error("Backend did not return required tokens");
+      }
+      localStorage.setItem("formula_token", token);
+      localStorage.setItem("formula_refresh_token", refreshToken);
+      localStorage.setItem("formula_user", JSON.stringify(user));
+      setUser(user);
+      setIsAuthenticated(true);
+      return { success: true, user };
+    } catch (error) {
+      console.error("Google Sign-In error occurred:", error);
+      authUtils.clearAuth();
+      let errorMessage = "Google Sign-In failed";
+      if (error.code === "auth/popup-closed-by-user") errorMessage = "Sign-in was cancelled. Please try again.";
+      else if (error.code === "auth/popup-blocked") errorMessage = "Popup was blocked by browser. Please allow popups and try again.";
+      else if (error.code === "auth/operation-not-allowed") errorMessage = "Google Sign-In is not enabled for this project.";
+      else if (error.message) errorMessage = error.message;
       throw new Error(errorMessage);
     } finally {
       setIsLoading(false);

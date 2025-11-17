@@ -117,6 +117,16 @@ export const authAPI = {
     const response = await api.post('/users/google-signin', googleUserData);
     return response.data;
   },
+
+  // OTP
+  sendOtp: async (email) => {
+    const response = await api.post('/users/send-otp', { email });
+    return response.data;
+  },
+  verifyOtp: async (email, code) => {
+    const response = await api.post('/users/verify-otp', { email, code });
+    return response.data;
+  },
 };
 
 // Form API calls with explicit authorization headers
@@ -262,6 +272,13 @@ export const formAPI = {
   // Submit a response to a form (no auth required - public endpoint)
   submitFormResponse: async (formId, responseData) => {
     const response = await api.post(`/forms/${formId}/submit`, responseData);
+    return response.data;
+  },
+
+  // Track a view for a public form (no auth required)
+  // The server will capture the IP address from the request.
+  trackFormView: async (formId) => {
+    const response = await api.post(`/forms/${formId}/view`);
     return response.data;
   },
 

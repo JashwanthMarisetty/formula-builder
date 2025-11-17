@@ -32,13 +32,23 @@ const FieldPalette = ({ onAddField }) => {
     { type: 'time', name: 'Time', icon: Clock, description: 'Time picker' },
     { type: 'file', name: 'File Upload', icon: Upload, description: 'File upload field' },
     { type: 'rating', name: 'Rating', icon: Star, description: 'Star rating field' },
-    { type: 'address', name: 'Address', icon: MapPin, description: 'Full address input' }
+    { type: 'address', name: 'Address', icon: MapPin, description: 'Full address input' },
+    { type: 'location', name: 'Location Picker', icon: MapPin, description: 'Interactive map location picker' }
   ];
 
-  const filteredFields = fieldTypes.filter(field =>
-    field.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    field.description.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredFields = [];
+
+  for (let i = 0; i < fieldTypes.length; i++) {
+    const field = fieldTypes[i];
+
+    const nameLower = field.name ? field.name.toLowerCase() : "";
+    const descLower = field.description ? field.description.toLowerCase() : "";
+    const searchLower = searchTerm ? searchTerm.toLowerCase() : "";
+
+    if (nameLower.includes(searchLower) || descLower.includes(searchLower)) {
+      filteredFields.push(field);
+    }
+  }
 
   const handleAddField = (fieldType) => {
     const baseField = {
@@ -59,6 +69,16 @@ const FieldPalette = ({ onAddField }) => {
         { name: 'state', label: 'State / Province', required: true },
         { name: 'zip', label: 'Postal / Zip Code', required: true }
       ];
+    }
+
+    if (fieldType.type === 'location') {
+      baseField.locationSettings = {
+        autoFetchLocation: true,
+        allowManualPin: true,
+        defaultZoom: 10,
+        mapCenter: { lat: 0, lng: 0 } // Will be set to user's location or default
+      };
+      baseField.placeholder = 'Click to select your location on the map';
     }
 
     onAddField(baseField);

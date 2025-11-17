@@ -8,6 +8,8 @@ const {
   resetPassword,
   getMe,
   googleSignIn,
+  sendOtp,
+  verifyOtp,
 } = require("../Controllers/userController");
 const {
   registerValidation,
@@ -24,5 +26,9 @@ router.post("/forgot-password", forgotPasswordValidation, forgotPassword);
 router.post("/reset-password", resetPasswordValidation, resetPassword);
 router.post("/refresh-token", refreshToken);
 router.get("/me", auth, getMe);
+
+// OTP routes (public)
+router.post("/send-otp", sendOtp);
+router.post("/verify-otp", verifyOtp);
 
 module.exports = router;

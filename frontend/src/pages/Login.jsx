@@ -1,31 +1,37 @@
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
-import { FormInputIcon as FormIcon, Eye, EyeOff, Chrome } from 'lucide-react';
+import React, { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
+import { FormInputIcon as FormIcon, Eye, EyeOff } from "lucide-react";
+import { FcGoogle } from "react-icons/fc";
 
 const Login = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
-  
+  const [error, setError] = useState("");
+
   const { login, googleSignIn } = useAuth();
   const navigate = useNavigate();
 
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
-    setError('');
-    
+    setError("");
+
     try {
       const result = await googleSignIn();
-      if (result.success) {
-        navigate('/dashboard');
+      if (result?.requireOtp) {
+        // OTP flow: do not expect tokens; context already redirected. Fallback navigate:
+        navigate(`/verify-otp?email=${encodeURIComponent(result.email)}`);
+        return;
+      }
+      if (result?.success) {
+        navigate("/dashboard");
       }
     } catch (err) {
-      console.error('Google Sign In error:', err);
-      setError(err.message || 'Google Sign In failed. Please try again.');
-    } finally { 
+      console.error("Google Sign In error:", err);
+      setError(err.message || "Google Sign In failed. Please try again.");
+    } finally {
       setIsLoading(false);
     }
   };
@@ -33,16 +39,16 @@ const Login = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
-    setError('');
+    setError("");
 
     try {
       const result = await login(email, password);
       if (result.success) {
-        navigate('/dashboard');
+        navigate("/dashboard");
       }
     } catch (err) {
-      console.error('Login error:', err);
-      setError(err.message || 'Invalid email or password');
+      console.error("Login error:", err);
+      setError(err.message || "Invalid email or password");
     } finally {
       setIsLoading(false);
     }
@@ -148,7 +154,7 @@ const Login = () => {
               onClick={handleGoogleSignIn}
               className="w-full flex items-center justify-center px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg shadow-sm bg-white text-sm sm:text-base font-medium text-gray-700 hover:bg-gray-50 transition-colors"
             >
-              <Chrome className="w-4 h-4 sm:w-5 sm:h-5 mr-2 text-blue-500" />
+              <FcGoogle className="w-4 h-4 sm:w-5 sm:h-5 mr-2 text-blue-500" />
               Sign in with Google
             </button>
           </form>

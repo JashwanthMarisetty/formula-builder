@@ -1,7 +1,9 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-import { FormInputIcon as FormIcon, Eye, EyeOff, Chrome } from "lucide-react";
+import { FormInputIcon as FormIcon, Eye, EyeOff } from "lucide-react";
+import { FcGoogle } from "react-icons/fc";
+import ReCAPTCHA from "react-google-recaptcha";
 
 const Register = () => {
   const [formData, setFormData] = useState({
@@ -13,6 +15,7 @@ const Register = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [captchaToken, setCaptchaToken] = useState("");
 
   const { register, googleSignIn } = useAuth();
   const navigate = useNavigate();
@@ -20,14 +23,18 @@ const Register = () => {
   const handleGoogleSignUp = async () => {
     setIsLoading(true);
     setError("");
-    
+
     try {
       const result = await googleSignIn();
-      if (result.success) {
+      if (result?.requireOtp) {
+        navigate(`/verify-otp?email=${encodeURIComponent(result.email)}`);
+        return;
+      }
+      if (result?.success) {
         navigate("/dashboard");
       }
     } catch (err) {
-      console.error('Google Sign Up error:', err);
+      console.error("Google Sign Up error:", err);
       setError(err.message || "Google Sign Up failed. Please try again.");
     } finally {
       setIsLoading(false);
@@ -42,9 +49,16 @@ const Register = () => {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault(); 
+    e.preventDefault();
     setIsLoading(true);
     setError("");
+
+    if (!captchaToken) {
+      setError("Please complete the captcha");
+      setIsLoading(false);
+      return;
+    }
+
 
     if (formData.password !== formData.confirmPassword) {
       setError("Passwords do not match");
@@ -59,22 +73,25 @@ const Register = () => {
     }
 
     try {
-      //what will this do , explain clearly 
+      //what will this do , explain clearly
       // This function will call the register method from AuthContext to handle user registration
       // It will pass the email, password, and name from the formData state
-      
-      const result = await register( // Call the register function from AuthContext, passing the necessary data 
+
+      const result = await register(
+        // Call the register function from AuthContext, passing the necessary data
         formData.email,
         formData.password,
-        formData.name
+        formData.name,
+        captchaToken
       );
       if (result.success) {
         navigate("/dashboard");
       }
     } catch (err) {
-      console.error('Registration error:', err);
+      console.error("Registration error:", err);
       setError(err.message || "Registration failed. Please try again.");
-    } finally {  // Ensure loading state is reset
+    } finally {
+      // Ensure loading state is reset
       setIsLoading(false);
     }
   };
@@ -196,6 +213,11 @@ const Register = () => {
               {isLoading ? "Creating Account..." : "Create Account"}
             </button>
 
+            <ReCAPTCHA
+              sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY}
+              onChange={(token) => setCaptchaToken(token)}
+            />
+
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full border-t border-gray-300" />
@@ -212,7 +234,7 @@ const Register = () => {
               onClick={handleGoogleSignUp}
               className="w-full flex items-center justify-center px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg shadow-sm bg-white text-sm sm:text-base font-medium text-gray-700 hover:bg-gray-50 transition-colors"
             >
-              <Chrome className="w-4 h-4 sm:w-5 sm:h-5 mr-2 text-blue-500" />
+              <FcGoogle className="w-4 h-4 sm:w-5 sm:h-5 mr-2 text-blue-500" />
               Sign up with Google
             </button>
           </form>

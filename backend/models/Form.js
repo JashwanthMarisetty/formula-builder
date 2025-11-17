@@ -24,17 +24,6 @@ const formSchema = new mongoose.Schema(
       required: [true, "Form must be created by a user"],
     },
 
-    // Form status - controls whether form accepts responses
-    status: {
-      type: String,
-      enum: {
-        values: ["draft", "published", "closed"],
-        message: "Status must be either draft, published, or closed",
-      },
-      default: "draft",
-      required: true,
-    },
-
     // Multi-page structure for forms
     pages: [
       {
@@ -69,6 +58,7 @@ const formSchema = new mongoose.Schema(
                 "phone",
                 "rating",
                 "address",
+                "location",
               ],
               required: true,
             },
@@ -90,8 +80,19 @@ const formSchema = new mongoose.Schema(
                 type: String,
               },
             ],
+            // Conditional visibility rules for this field
+            // Format: [{ when: [{ field, op, value }], action?: 'show' | 'hide' }]
+            visibilityRules: {
+              type: [mongoose.Schema.Types.Mixed],
+              default: [],
+            },
           },
-        ]
+        ],
+        // Optional page-level logic (e.g., skip to page based on answers)
+        logic: {
+          type: mongoose.Schema.Types.Mixed,
+          default: {},
+        }
       }
     ],
 
@@ -118,6 +119,7 @@ const formSchema = new mongoose.Schema(
             "phone",
             "rating",
             "address",
+            "location",
           ],
           required: true,
         },
@@ -139,37 +141,44 @@ const formSchema = new mongoose.Schema(
             type: String,
           },
         ],
+        visibilityRules: {
+          type: [mongoose.Schema.Types.Mixed],
+          default: [],
+        },
       },
     ],
 
-    // Array of form responses/submissions
-    responses: [
-      {
-        id: {
-          type: String,
-          required: true,
-        },
-        submittedAt: {
-          type: Date,
-          default: Date.now,
-          required: true,
-        },
-        data: {
-          type: mongoose.Schema.Types.Mixed,
-          required: true,
-        },
-        submitterIP: {
-          type: String,
-          default: "",
-        },
-      },
-    ],
+    // Email confirmation settings
+    collectRespondentEmail: {
+      type: Boolean,
+      default: true,
+    },
 
     // Analytics fields
     views: {
       type: Number,
       default: 0,
       min: 0,
+    },
+
+    // Denormalized response tracking (for fast dashboard queries)
+    responsesCount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+
+    lastResponseAt: {
+      type: Date,
+      default: null,
+    },
+
+    // Location for organizing forms (inbox, trash, archive)
+    location: {
+      type: String,
+      enum: ['inbox', 'trash', 'archive'],
+      default: 'inbox',
+      required: true,
     },
   },
   {
@@ -181,11 +190,11 @@ const formSchema = new mongoose.Schema(
 // 1. Most critical index: Filter by user and sort by update time
 formSchema.index({ createdBy: 1, updatedAt: -1 });
 
-// 2. Status filtering: Filter by user, status and sort by update time  
-formSchema.index({ createdBy: 1, status: 1, updatedAt: -1 });
-
-// 3. Title search: Text search for form titles (replaces slow $regex queries)
+// 2. Title search: Text search for form titles (replaces slow $regex queries)
 formSchema.index({ title: 'text' });
+
+// 3. Location filtering
+formSchema.index({ createdBy: 1, location: 1, updatedAt: -1 });
 
 const Form = mongoose.model("Form", formSchema);
 
