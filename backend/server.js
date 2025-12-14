@@ -18,6 +18,7 @@ const { connectRedis, client: redisClient } = require("./config/redis");
 const connectDB = require("./config/database");
 const userRoutes = require("./routes/userRoutes");
 const formRoutes = require("./routes/formRoutes");
+const qrRoutes = require("./routes/qrRoutes");
 
 const app = express();
 
@@ -46,6 +47,9 @@ app.use(bodyParser.urlencoded({ extended: true }));
 // Routes
 app.use("/api/users", userRoutes);
 app.use("/api/forms", formRoutes);
+app.use("/api", qrRoutes); // QR API routes
+app.use("/q", qrRoutes);   // Public QR redirect route
+
 
 const PORT = process.env.PORT || 5000;
 

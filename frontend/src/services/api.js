@@ -361,6 +361,58 @@ export const formAPI = {
       throw error;
     }
   },
+  
+  // Generate QR Code for a form (requires authentication)
+  generateQRCode: async (formId) => {
+    const token = getToken();
+    try {
+      const response = await api.post(`/forms/${formId}/qr`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      return response.data;
+    } catch (error) {
+      if (error.response?.status === 401) {
+        try {
+          await authUtils.refreshToken();
+          const newToken = getToken();
+          const response = await api.post(`/forms/${formId}/qr`, {}, {
+            headers: { Authorization: `Bearer ${newToken}` }
+          });
+          return response.data;
+        } catch (refreshError) {
+          authUtils.clearAuth();
+          throw refreshError;
+        }
+      }
+      throw error;
+    }
+  },
+
+  // Get QR Code data for a form (requires authentication)
+  getQRData: async (formId) => {
+    const token = getToken();
+    try {
+      const response = await api.get(`/forms/${formId}/qr`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      return response.data;
+    } catch (error) {
+      if (error.response?.status === 401) {
+        try {
+          await authUtils.refreshToken();
+          const newToken = getToken();
+          const response = await api.get(`/forms/${formId}/qr`, {
+            headers: { Authorization: `Bearer ${newToken}` }
+          });
+          return response.data;
+        } catch (refreshError) {
+          authUtils.clearAuth();
+          throw refreshError;
+        }
+      }
+      throw error;
+    }
+  },
 };
 
 export { authUtils };
