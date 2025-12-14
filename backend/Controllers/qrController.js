@@ -44,19 +44,10 @@ const generateQRCode = async (req, res) => {
     // 3. Check if QR code already exists for this form
     let qrCode = await QRCode.findOne({ formId: id });
 
-
     if (qrCode) {
-      // QR code already exists, return existing data
-      return res.status(200).json({
-        success: true,
-        message: 'QR code already exists',
-        data: {
-          token: qrCode.token,
-          shortUrl: `/q/${qrCode.token}`,
-          scanCount: qrCode.scanCount,
-          createdAt: qrCode.createdAt
-        }
-      });
+      // Delete the old QR code to regenerate with new token
+      await QRCode.findByIdAndDelete(qrCode._id);
+      console.log(`Regenerating QR code for form ${id}, old token: ${qrCode.token}`);
     }
 
     // 4. Generate unique token
@@ -79,7 +70,7 @@ const generateQRCode = async (req, res) => {
     // 6. Return success response
     res.status(201).json({
       success: true,
-      message: 'QR code generated successfully',
+      message: qrCode ? 'QR code regenerated successfully' : 'QR code generated successfully',
       data: {
         token: qrCode.token,
         shortUrl: `/q/${qrCode.token}`,
