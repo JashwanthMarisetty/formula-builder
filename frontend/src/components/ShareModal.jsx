@@ -1,20 +1,103 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   X, 
   Copy, 
   ExternalLink, 
   Check,
-  Share2
+  Share2,
+  QrCode,
+  Download,
+  Eye
 } from 'lucide-react';
 
 import { FaFacebook, FaLinkedin, FaWhatsapp } from "react-icons/fa";
+import { QRCodeCanvas, QRCodeSVG } from 'qrcode.react';
+import { formAPI } from '../services/api';
+
 
 const ShareModal = ({ form, onClose }) => {
   const [activeTab, setActiveTab] = useState('link');
   const [copied, setCopied] = useState(false);
   const [visibility, setVisibility] = useState('public');
+  
+  // QR Code state
+  const [qrData, setQrData] = useState(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [qrError, setQrError] = useState(null);
+  const [showCanvas, setShowCanvas] = useState(true); // Toggle between canvas and SVG
 
   const formUrl = `${window.location.origin}/form/${form.id || form._id}`;
+
+  // Load existing QR data when tab is opened
+  useEffect(() => {
+    if (activeTab === 'qrcode' && !qrData && !isGenerating) {
+      loadExistingQRData();
+    }
+  }, [activeTab]);
+
+  const loadExistingQRData = async () => {
+    try {
+      const response = await formAPI.getQRData(form.id || form._id);
+      if (response.success) {
+        setQrData(response.data);
+      }
+    } catch (error) {
+      // QR doesn't exist yet, that's okay
+      console.log('No existing QR code found');
+    }
+  };
+
+  const handleGenerateQR = async () => {
+    setIsGenerating(true);
+    setQrError(null);
+    
+    try {
+      const response = await formAPI.generateQRCode(form.id || form._id);
+      
+      if (response.success) {
+        setQrData(response.data);
+      } else {
+        setQrError(response.message || 'Failed to generate QR code');
+      }
+    } catch (error) {
+      console.error('Error generating QR code:', error);
+      setQrError(error.response?.data?.message || 'Failed to generate QR code. Please try again.');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleDownloadPNG = () => {
+    const canvas = document.getElementById('qr-code-canvas');
+    if (!canvas) return;
+    
+    canvas.toBlob((blob) => {
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `form-qr-${form.id || form._id}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    });
+  };
+
+  const handleDownloadSVG = () => {
+    const svg = document.getElementById('qr-code-svg');
+    if (!svg) return;
+    
+    const svgData = new XMLSerializer().serializeToString(svg);
+    const blob = new Blob([svgData], { type: 'image/svg+xml' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `form-qr-${form.id || form._id}.svg`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
 
   const handleCopyLink = async () => {
     try {
@@ -62,9 +145,12 @@ const ShareModal = ({ form, onClose }) => {
     { value: 'organization', label: 'Organization Form', description: 'Only organization members can access' }
   ];
 
+  // Get the short URL for QR code
+  const qrUrl = qrData ? `${window.location.origin}${qrData.shortUrl}` : formUrl;
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+      <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <h2 className="text-xl font-semibold text-gray-900">Share Form</h2>
@@ -97,6 +183,19 @@ const ShareModal = ({ form, onClose }) => {
             }`}
           >
             Share Through Apps
+          </button>
+          <button
+            onClick={() => setActiveTab("qrcode")}
+            className={`flex-1 py-3 px-4 text-sm font-medium transition-colors ${
+              activeTab === "qrcode"
+                ? "text-purple-600 border-b-2 border-purple-600"
+                : "text-gray-500 hover:text-gray-700"
+            }`}
+          >
+            <div className="flex items-center justify-center space-x-1">
+              <QrCode className="w-4 h-4" />
+              <span>QR Code</span>
+            </div>
           </button>
         </div>
 
@@ -232,6 +331,118 @@ const ShareModal = ({ form, onClose }) => {
                   <span className="font-medium text-gray-900">More</span>
                 </button>
               </div>
+            </div>
+          )}
+
+          {activeTab === "qrcode" && (
+            <div className="space-y-6">
+              <p className="text-gray-600 text-sm">
+                Generate a QR code for easy sharing. People can scan it with their phone camera to open your form.
+              </p>
+
+              {!qrData ? (
+                <div className="text-center py-8">
+                  <div className="w-20 h-20 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <QrCode className="w-10 h-10 text-purple-600" />
+                  </div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">
+                    No QR Code Yet
+                  </h3>
+                  <p className="text-gray-600 mb-6">
+                    Click the button below to generate a QR code for this form
+                  </p>
+                  <button
+                    onClick={handleGenerateQR}
+                    disabled={isGenerating}
+                    className="bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 transition-colors disabled:bg-purple-400 disabled:cursor-not-allowed flex items-center space-x-2 mx-auto"
+                  >
+                    {isGenerating ? (
+                      <>
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                        <span>Generating...</span>
+                      </>
+                    ) : (
+                      <>
+                        <QrCode className="w-5 h-5" />
+                        <span>Generate QR Code</span>
+                      </>
+                    )}
+                  </button>
+                  {qrError && (
+                    <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                      <p className="text-red-600 text-sm">{qrError}</p>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {/* QR Code Display */}
+                  <div className="bg-white border-2 border-gray-200 rounded-lg p-6 flex flex-col items-center">
+                    <div className="bg-white p-4 rounded-lg">
+                      {showCanvas ? (
+                        <QRCodeCanvas
+                          id="qr-code-canvas"
+                          value={qrUrl}
+                          size={200}
+                          level="H"
+                          includeMargin={true}
+                        />
+                      ) : (
+                        <QRCodeSVG
+                          id="qr-code-svg"
+                          value={qrUrl}
+                          size={200}
+                          level="H"
+                          includeMargin={true}
+                        />
+                      )}
+                    </div>
+                    
+                    {/* Short URL Display */}
+                    <div className="mt-4 text-center">
+                      <p className="text-xs text-gray-500 mb-1">Short URL</p>
+                      <code className="text-sm bg-gray-100 px-3 py-1 rounded text-purple-600 font-mono">
+                        {qrData.shortUrl}
+                      </code>
+                    </div>
+
+                    {/* Scan Count */}
+                    {qrData.scanCount !== undefined && (
+                      <div className="mt-3 flex items-center space-x-2 text-sm text-gray-600">
+                        <Eye className="w-4 h-4" />
+                        <span>Scanned {qrData.scanCount} times</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Download Buttons */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      onClick={handleDownloadPNG}
+                      className="flex items-center justify-center space-x-2 bg-blue-600 text-white px-4 py-3 rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      <Download className="w-4 h-4" />
+                      <span>Download PNG</span>
+                    </button>
+                    <button
+                      onClick={handleDownloadSVG}
+                      className="flex items-center justify-center space-x-2 bg-green-600 text-white px-4 py-3 rounded-lg hover:bg-green-700 transition-colors"
+                    >
+                      <Download className="w-4 h-4" />
+                      <span>Download SVG</span>
+                    </button>
+                  </div>
+
+                  {/* Regenerate Button */}
+                  <button
+                    onClick={handleGenerateQR}
+                    disabled={isGenerating}
+                    className="w-full text-purple-600 px-4 py-2 rounded-lg hover:bg-purple-50 transition-colors text-sm disabled:text-purple-400"
+                  >
+                    {isGenerating ? 'Regenerating...' : 'Regenerate QR Code'}
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>

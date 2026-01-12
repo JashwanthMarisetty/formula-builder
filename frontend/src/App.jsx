@@ -13,6 +13,7 @@ import MyForms from './pages/MyForms';
 import Profile from './pages/Profile';
 import ActivityLogs from './pages/ActivityLogs';
 import PublicForm from './pages/PublicForm';
+import QRRedirect from './pages/QRRedirect';
 import MapTest from './pages/MapTest';
 import VerifyOtp from './pages/VerifyOtp';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -65,6 +66,8 @@ function App() {
               } />
               {/* Public form filling route - no authentication required */}
               <Route path="/form/:formId" element={<PublicForm />} />
+              {/* QR Code redirect handler - redirects to backend */}
+              <Route path="/q/:token" element={<QRRedirect />} />
               {/* OTP verification route - public */}
               <Route path="/verify-otp" element={<VerifyOtp />} />
               {/* Map testing route - for debugging Google Maps API issues */}
