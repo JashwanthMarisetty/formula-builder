@@ -1,28 +1,42 @@
-const nodemailer = require("nodemailer");
+const sgMail = require('@sendgrid/mail');
 
+/**
+ * Send email using SendGrid (HTTP API - works on Render!)
+ * 
+ * Why SendGrid instead of SMTP?
+ * - Render blocks SMTP ports (25, 465, 587)
+ * - SendGrid uses HTTPS (port 443) which is always open
+ * - More reliable email delivery
+ * - Better tracking and analytics
+ * 
+ * Setup required:
+ * 1. Sign up at https://sendgrid.com
+ * 2. Verify your sender email
+ * 3. Create an API key
+ * 4. Add SENDGRID_API_KEY to environment variables
+ */
 const sendEmail = async (to, subject, text, html) => {
   try {
-    const transporter = nodemailer.createTransport({
-      host: "smtp.zoho.in", // for Indian users; use smtp.zoho.com for global
-      port: 465, // use 465 for secure SSL
-      secure: true,
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS, // MUST be App Password, not regular password
-      },
-    });
+    // Set API key from environment
+    sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
-    const mailOptions = {
-      from: `"Formula Builder" <${process.env.EMAIL_USER}>`,
+    const msg = {
       to,
+      from: {
+        email: process.env.SENDGRID_FROM_EMAIL || 'formulabuilder@formulabuilder.tech',
+        name: 'Formula Builder'
+      },
+      replyTo: process.env.SENDGRID_FROM_EMAIL || 'formulabuilder@formulabuilder.tech',
       subject,
       text,
       html,
     };
 
-    const info = await transporter.sendMail(mailOptions);
-    return { success: true, messageId: info.messageId };
+    const response = await sgMail.send(msg);
+    console.log('✅ Email sent successfully via SendGrid');
+    return { success: true, messageId: response[0].headers['x-message-id'] };
   } catch (error) {
+    console.error('❌ SendGrid error:', error.response?.body || error.message);
     throw error;
   }
 };
