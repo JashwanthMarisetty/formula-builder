@@ -1,16 +1,9 @@
 const express = require("express");
 const bodyParser = require("body-parser");
 const cors = require("cors");
-
 // Load environment variables
-// Try .env.local first (for development), then fall back to .env
-const fs = require('fs');
 const dotenv = require('dotenv');
-if (fs.existsSync('.env.local')) {
-  dotenv.config({ path: '.env.local' });
-} else {
-  dotenv.config();
-}
+dotenv.config();
 
 const { connectQueue } = require("./config/rabbitmq");
 const { connectRedis, client: redisClient } = require("./config/redis");
@@ -59,6 +52,9 @@ const PORT = process.env.PORT || 5000;
 
 // Load cron jobs (e.g., syncing Redis view counters to MongoDB)
 require("./cron/syncViews");
+
+// Start email worker (consumes queued emails from RabbitMQ)
+require("./workers/emailWorker");
 
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
