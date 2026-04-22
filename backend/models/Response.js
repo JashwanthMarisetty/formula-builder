@@ -36,6 +36,22 @@ const responseSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+
+    // Spam detection results
+    spamScore: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 1,
+    },
+    flagged: {
+      type: Boolean,
+      default: false,
+    },
+    spamReasons: {
+      type: [String],
+      default: [],
+    },
   },
   {
     timestamps: true, // Adds createdAt and updatedAt automatically

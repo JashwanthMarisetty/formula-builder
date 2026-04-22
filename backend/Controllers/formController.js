@@ -4,6 +4,8 @@ const { validationResult } = require("express-validator");
 const { sendEmail } = require("../utils/sendEmail");
 const { isFieldVisible, buildReachablePageIds } = require("../utils/logic");
 const { reverseGeocode } = require("../utils/geocode");
+const { analyzeResponse } = require("../utils/spamDetector");
+
 const { client: redis } = require("../config/redis");
 
 // CREATE - Create a new form
@@ -506,23 +508,34 @@ const submitFormResponse = async (req, res) => {
       console.warn("Location enrichment failed:", e?.message || e);
     }
 
-    // 6) Save response in separate collection
+    // 6) Spam detection (non-blocking — don't reject, just flag)
+    let spamResult = { score: 0, flagged: false, reasons: [] };
+    try {
+      spamResult = await analyzeResponse(responseData, form.fields || []);
+    } catch (e) {
+      console.warn("Spam detection failed (non-blocking):", e?.message || e);
+    }
+
+    // 7) Save response in separate collection
     const newResponse = new Response({
       formId: id,
       submittedAt: submittedAt ? new Date(submittedAt) : new Date(),
       data: responseData,
       submitterIP: req.ip || req.connection?.remoteAddress || "unknown",
       respondentEmail,
+      spamScore: spamResult.score,
+      flagged: spamResult.flagged,
+      spamReasons: spamResult.reasons,
     });
     await newResponse.save();
 
-    // 7) Update form counters (denormalized)
+    // 8) Update form counters (denormalized)
     await Form.findByIdAndUpdate(id, {
       $inc: { responsesCount: 1 },
       lastResponseAt: newResponse.submittedAt,
     });
 
-    // 8) Fire-and-forget confirmation email
+    // 9) Fire-and-forget confirmation email
     if (respondentEmail) {
       const subject = `Form Submission Confirmation - ${form.title}`;
       const text = "Thank you for your submission! We have received your response.";
@@ -930,6 +943,46 @@ const trackViewsController = async (req, res) => {
   }
 };
 
+// Spam Analytics: Get spam stats for a form
+const getSpamStats = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const form = await Form.findById(id).select("createdBy").lean();
+    if (!form)
+      return res.status(404).json({ success: false, message: "Form not found" });
+    if (form.createdBy.toString() !== req.user.id)
+      return res.status(403).json({ success: false, message: "Access denied" });
+
+    const totalResponses = await Response.countDocuments({ formId: id });
+    const flagged = await Response.find({ formId: id, flagged: true })
+      .select("respondentEmail spamScore spamReasons")
+      .lean();
+
+    const flaggedEmails = [];
+    for (const doc of flagged) {
+      flaggedEmails.push({
+        email: doc.respondentEmail || "Anonymous",
+        spamScore: doc.spamScore,
+        reasons: doc.spamReasons,
+      });
+    }
+
+    return res.json({
+      success: true,
+      data: {
+        totalResponses,
+        flaggedCount: flagged.length,
+        flaggedEmails,
+      },
+    });
+  } catch (error) {
+    console.error("Error computing spam stats:", error);
+    return res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+
+
 module.exports = {
   createForm,
   getAllForms,
@@ -944,4 +997,5 @@ module.exports = {
   getLocationCounts,
   getLocationHeatmap,
   trackViewsController,
+  getSpamStats,
 };

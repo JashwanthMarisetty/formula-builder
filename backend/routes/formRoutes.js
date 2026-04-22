@@ -14,6 +14,7 @@ const {
   getLocationCounts,
   getLocationHeatmap,
   trackViewsController,
+  getSpamStats,
 } = require("../Controllers/formController");
 const { auth } = require("../middleware/auth");
 const { submitRateLimit } = require("../middleware/submitRateLimit");
@@ -26,6 +27,8 @@ const {
 
 // GET /api/forms - Get all forms for authenticated user
 router.get("/", auth, getFormsValidation, getAllForms);
+
+
 
 // GET /api/forms/:id - Get a single form by ID
 router.get("/:id", auth, getFormByIdValidation, getFormById);
@@ -62,5 +65,6 @@ router.delete("/:formId/responses/:responseId", auth, deleteResponse);
 // ANALYTICS
 router.get("/:id/analytics/location-counts", auth, getLocationCounts);
 router.get("/:id/analytics/heatmap", auth, getLocationHeatmap);
+router.get("/:id/analytics/spam", auth, getSpamStats);
 
 module.exports = router;
