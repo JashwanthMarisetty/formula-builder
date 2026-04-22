@@ -2,7 +2,7 @@ const dotenv = require("dotenv");
 
 const path = require("path");
 
-dotenv.config({ path: path.join(__dirname, "../.env.local") });
+dotenv.config({ path: path.join(__dirname, "../.env") });
 
 const amqp = require("amqplib");
 const { sendEmail } = require("../utils/sendEmail");
