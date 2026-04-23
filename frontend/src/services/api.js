@@ -413,6 +413,110 @@ export const formAPI = {
       throw error;
     }
   },
+
+  // Generate form using AI (requires authentication)
+  generateFormWithAI: async (prompt) => {
+    const token = getToken();
+    try {
+      const response = await api.post('/forms/generate-ai', { prompt }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      return response.data;
+    } catch (error) {
+      if (error.response?.status === 401) {
+        try {
+          await authUtils.refreshToken();
+          const newToken = getToken();
+          const response = await api.post('/forms/generate-ai', { prompt }, {
+            headers: { Authorization: `Bearer ${newToken}` }
+          });
+          return response.data;
+        } catch (refreshError) {
+          authUtils.clearAuth();
+          throw refreshError;
+        }
+      }
+      throw error;
+    }
+  },
+
+  // Get spam stats for a form (requires authentication)
+  getSpamStats: async (formId) => {
+    const token = getToken();
+    try {
+      const response = await api.get(`/forms/${formId}/analytics/spam`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      return response.data;
+    } catch (error) {
+      if (error.response?.status === 401) {
+        try {
+          await authUtils.refreshToken();
+          const newToken = getToken();
+          const response = await api.get(`/forms/${formId}/analytics/spam`, {
+            headers: { Authorization: `Bearer ${newToken}` }
+          });
+          return response.data;
+        } catch (refreshError) {
+          authUtils.clearAuth();
+          throw refreshError;
+        }
+      }
+      throw error;
+    }
+  },
+
+  // Get location counts for a form (requires authentication)
+  getLocationCounts: async (formId) => {
+    const token = getToken();
+    try {
+      const response = await api.get(`/forms/${formId}/analytics/location-counts`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      return response.data;
+    } catch (error) {
+      if (error.response?.status === 401) {
+        try {
+          await authUtils.refreshToken();
+          const newToken = getToken();
+          const response = await api.get(`/forms/${formId}/analytics/location-counts`, {
+            headers: { Authorization: `Bearer ${newToken}` }
+          });
+          return response.data;
+        } catch (refreshError) {
+          authUtils.clearAuth();
+          throw refreshError;
+        }
+      }
+      throw error;
+    }
+  },
+
+  // Get heatmap points for a form (requires authentication)
+  getHeatmapPoints: async (formId) => {
+    const token = getToken();
+    try {
+      const response = await api.get(`/forms/${formId}/analytics/heatmap`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      return response.data;
+    } catch (error) {
+      if (error.response?.status === 401) {
+        try {
+          await authUtils.refreshToken();
+          const newToken = getToken();
+          const response = await api.get(`/forms/${formId}/analytics/heatmap`, {
+            headers: { Authorization: `Bearer ${newToken}` }
+          });
+          return response.data;
+        } catch (refreshError) {
+          authUtils.clearAuth();
+          throw refreshError;
+        }
+      }
+      throw error;
+    }
+  },
 };
 
 export { authUtils };
