@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useForm } from "../contexts/FormContext";
 import { useAuth } from "../contexts/AuthContext";
 import Navbar from "../components/Navbar";
-import { Plus, FileText, Users, Eye } from "lucide-react";
+import { Plus, FileText, Users, Eye, Sparkles } from "lucide-react";
 
 const Dashboard = () => {
   const { forms, createForm, isLoadingForms } = useForm();
@@ -81,13 +81,22 @@ const Dashboard = () => {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
         {/* Header */}
-        <div className="mb-6 sm:mb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
-            Welcome back, {user?.name}! 👋
-          </h1>
-          <p className="text-gray-600 mt-2 text-sm sm:text-base">
-            Here's what's happening with your forms today.
-          </p>
+        <div className="mb-6 sm:mb-8 flex items-start justify-between">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
+              Welcome back, {user?.name}! 👋
+            </h1>
+            <p className="text-gray-600 mt-2 text-sm sm:text-base">
+              Here's what's happening with your forms today.
+            </p>
+          </div>
+          <Link
+            to="/ai-form-generator"
+            className="flex items-center gap-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-4 py-2.5 rounded-xl text-sm font-medium hover:from-purple-700 hover:to-indigo-700 transition-all shadow-sm hover:shadow-md whitespace-nowrap"
+          >
+            <Sparkles className="w-4 h-4" />
+            Generate with AI
+          </Link>
         </div>
 
         {/* Stats Cards - Only 3 cards */}

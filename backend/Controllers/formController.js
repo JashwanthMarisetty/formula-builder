@@ -5,7 +5,7 @@ const { sendEmail } = require("../utils/sendEmail");
 const { isFieldVisible, buildReachablePageIds } = require("../utils/logic");
 const { reverseGeocode } = require("../utils/geocode");
 const { analyzeResponse } = require("../utils/spamDetector");
-
+const { generateForm } = require("../utils/aiFormGenerator");
 const { client: redis } = require("../config/redis");
 
 // CREATE - Create a new form
@@ -981,7 +981,92 @@ const getSpamStats = async (req, res) => {
   }
 };
 
+// AI FORM GENERATOR: Generate form from natural language
+const generateFormWithAI = async (req, res) => {
+  try {
+    const { prompt } = req.body;
 
+    if (!prompt || typeof prompt !== "string" || prompt.trim().length < 5) {
+      return res.status(400).json({
+        success: false,
+        message: "Please provide a description of the form you want (at least 5 characters)",
+      });
+    }
+
+    if (prompt.length > 1000) {
+      return res.status(400).json({
+        success: false,
+        message: "Description too long (max 1000 characters)",
+      });
+    }
+
+    // Generate form structure using AI
+    const formData = await generateForm(prompt.trim());
+
+    // Save to database
+    const newForm = new Form({
+      title: formData.title,
+      pages: formData.pages,
+      createdBy: req.user.id,
+      status: "draft",
+    });
+    await newForm.save();
+
+    return res.status(201).json({
+      success: true,
+      message: "Form generated successfully using AI",
+      data: {
+        form: newForm,
+        aiPrompt: prompt.trim(),
+        fieldsGenerated: formData.pages.reduce((sum, p) => sum + p.fields.length, 0),
+        pagesGenerated: formData.pages.length,
+      },
+    });
+  } catch (error) {
+    console.error("AI form generation error:", error);
+
+    if (error.message === "GROQ_API_KEY not configured") {
+      return res.status(501).json({
+        success: false,
+        message: "AI feature not configured. Set GROQ_API_KEY in environment.",
+      });
+    }
+
+    if (error.message === "GROQ_API_KEY is invalid or expired") {
+      return res.status(401).json({
+        success: false,
+        message: "AI API key is invalid. Please check your GROQ_API_KEY.",
+      });
+    }
+
+    if (error.message?.includes("rate limit")) {
+      return res.status(429).json({
+        success: false,
+        message: error.message,
+      });
+    }
+
+    if (error.message?.includes("Invalid AI response") || error instanceof SyntaxError) {
+      return res.status(422).json({
+        success: false,
+        message: "AI could not generate a valid form. Please try rephrasing your description.",
+      });
+    }
+
+    if (error.message?.includes("unavailable") || error.code === "ECONNABORTED" || error.message?.includes("timeout")) {
+      return res.status(503).json({
+        success: false,
+        message: "AI service is temporarily unavailable. Please try again in a moment.",
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to generate form",
+      error: error.message,
+    });
+  }
+};
 
 module.exports = {
   createForm,
@@ -998,4 +1083,5 @@ module.exports = {
   getLocationHeatmap,
   trackViewsController,
   getSpamStats,
+  generateFormWithAI,
 };

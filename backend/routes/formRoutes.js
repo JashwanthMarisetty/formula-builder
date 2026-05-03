@@ -15,6 +15,7 @@ const {
   getLocationHeatmap,
   trackViewsController,
   getSpamStats,
+  generateFormWithAI,
 } = require("../Controllers/formController");
 const { auth } = require("../middleware/auth");
 const { submitRateLimit } = require("../middleware/submitRateLimit");
@@ -28,23 +29,28 @@ const {
 // GET /api/forms - Get all forms for authenticated user
 router.get("/", auth, getFormsValidation, getAllForms);
 
-
-
-// GET /api/forms/:id - Get a single form by ID
-router.get("/:id", auth, getFormByIdValidation, getFormById);
+// POST /api/forms/generate-ai - Generate form using AI (must be before /:id)
+router.post("/generate-ai", auth, generateFormWithAI);
 
 // POST /api/forms - Create a new form
 router.post("/", auth, createFormValidation, createForm);
 
-// PUT /api/forms/:id - Update a form
-router.put("/:id", auth, updateFormValidation, updateForm);
-
-// DELETE /api/forms/:id - Delete a form
-router.delete("/:id", auth, deleteForm);
-
-// PUBLIC ROUTES (no auth required)
+// PUBLIC ROUTES — must be before /:id wildcard routes
 // GET /api/forms/public/:id - Get public form for sharing
 router.get("/public/:id", getPublicForm);
+
+// ANALYTICS — static sub-paths, must be before /:id
+router.get("/:id/analytics/location-counts", auth, getLocationCounts);
+router.get("/:id/analytics/heatmap", auth, getLocationHeatmap);
+router.get("/:id/analytics/spam", auth, getSpamStats);
+
+// RESPONSE MANAGEMENT ROUTES (auth required) — before generic /:id
+// GET /api/forms/:formId/responses/:responseId - Get a single response
+router.get("/:formId/responses/:responseId", auth, getResponseById);
+// GET /api/forms/:id/responses - Get all responses for a form
+router.get("/:id/responses", auth, getFormResponses);
+// DELETE /api/forms/:formId/responses/:responseId - Delete a specific response
+router.delete("/:formId/responses/:responseId", auth, deleteResponse);
 
 // POST /api/forms/:id/view - Track a view for a form (public)
 router.post("/:id/view", trackViewsController);
@@ -52,19 +58,14 @@ router.post("/:id/view", trackViewsController);
 // POST /api/forms/:id/submit - Submit response to form (rate-limited)
 router.post("/:id/submit", submitRateLimit, submitFormResponse);
 
-// RESPONSE MANAGEMENT ROUTES (auth required)
-// GET /api/forms/:id/responses - Get all responses for a form
-router.get("/:id/responses", auth, getFormResponses);
+// Wildcard /:id routes — must come LAST
+// GET /api/forms/:id - Get a single form by ID
+router.get("/:id", auth, getFormByIdValidation, getFormById);
 
-// GET /api/forms/:formId/responses/:responseId - Get a single response
-router.get("/:formId/responses/:responseId", auth, getResponseById);
+// PUT /api/forms/:id - Update a form
+router.put("/:id", auth, updateFormValidation, updateForm);
 
-// DELETE /api/forms/:formId/responses/:responseId - Delete a specific response
-router.delete("/:formId/responses/:responseId", auth, deleteResponse);
-
-// ANALYTICS
-router.get("/:id/analytics/location-counts", auth, getLocationCounts);
-router.get("/:id/analytics/heatmap", auth, getLocationHeatmap);
-router.get("/:id/analytics/spam", auth, getSpamStats);
+// DELETE /api/forms/:id - Delete a form
+router.delete("/:id", auth, deleteForm);
 
 module.exports = router;

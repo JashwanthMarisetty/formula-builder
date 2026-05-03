@@ -16,6 +16,7 @@ import PublicForm from './pages/PublicForm';
 import QRRedirect from './pages/QRRedirect';
 import MapTest from './pages/MapTest';
 import VerifyOtp from './pages/VerifyOtp';
+import AIFormGenerator from './pages/AIFormGenerator';
 import ProtectedRoute from './components/ProtectedRoute';
 import './index.css';
 
@@ -62,6 +63,11 @@ function App() {
               <Route path="/activity-logs" element={
                 <ProtectedRoute>
                   <ActivityLogs />
+                </ProtectedRoute>
+              } />
+              <Route path="/ai-form-generator" element={
+                <ProtectedRoute>
+                  <AIFormGenerator />
                 </ProtectedRoute>
               } />
               {/* Public form filling route - no authentication required */}
