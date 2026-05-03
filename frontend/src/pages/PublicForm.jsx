@@ -80,6 +80,7 @@ const PublicForm = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [respondentEmail, setRespondentEmail] = useState("");
+  const [emailError, setEmailError] = useState("");
 
   // Load the public form and track a view
   useEffect(() => {
@@ -257,24 +258,28 @@ const PublicForm = () => {
       return;
     }
 
-    // Validate email - always required
-    if (!respondentEmail || respondentEmail.trim() === "") {
-      alert("Please enter your email address to receive a confirmation");
-      return;
-    }
-
+    const collectEmail = form?.collectRespondentEmail !== false;
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(respondentEmail.trim())) {
-      alert("Please enter a valid email address");
-      return;
+
+    // Validate email only if the form is set to collect it
+    if (collectEmail) {
+      if (!respondentEmail || respondentEmail.trim() === "") {
+        setEmailError("Please enter your email address to receive a confirmation");
+        return;
+      }
+      if (!emailRegex.test(respondentEmail.trim())) {
+        setEmailError("Please enter a valid email address");
+        return;
+      }
     }
 
+    setEmailError("");
     setIsSubmitting(true);
     try {
       const result = await formAPI.submitFormResponse(formId, {
         data: formData,
         submittedAt: new Date().toISOString(),
-        respondentEmail: respondentEmail.trim(),
+        respondentEmail: collectEmail ? respondentEmail.trim() : "",
       });
 
       if (result.success) {
@@ -282,7 +287,7 @@ const PublicForm = () => {
       }
     } catch (error) {
       console.error("Error submitting form:", error);
-      alert("Failed to submit form: " + error.message);
+      setErrors((prev) => ({ ...prev, _submit: error?.response?.data?.message || "Failed to submit form. Please try again." }));
     } finally {
       setIsSubmitting(false);
     }
@@ -713,14 +718,19 @@ const PublicForm = () => {
   if (isSubmitted) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center max-w-md mx-auto">
+        <div className="text-center max-w-md mx-auto px-4">
           <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <CheckCircle className="w-8 h-8 text-green-600" />
           </div>
-          <h3 className="text-lg font-medium text-gray-900 mb-2">Thank you!</h3>
-          <p className="text-gray-600 mb-6">
+          <h3 className="text-xl font-semibold text-gray-900 mb-2">Thank you! 🎉</h3>
+          <p className="text-gray-600 mb-2">
             Your response has been submitted successfully.
           </p>
+          {respondentEmail && (
+            <p className="text-sm text-gray-500 mb-6">
+              📧 A confirmation has been sent to <strong>{respondentEmail}</strong>
+            </p>
+          )}
           <button
             onClick={() => navigate("/")}
             className="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700 transition-colors"
@@ -803,24 +813,39 @@ const PublicForm = () => {
           {/* Form Fields */}
           <div>{visibleFields.map((field) => renderField(field))}</div>
 
-          {/* Required Email Field for Confirmation (always shown on last page) */}
-          {isLastPage && (
+          {/* Email Confirmation Field — shown on last page only if form has collectRespondentEmail enabled */}
+          {isLastPage && form?.collectRespondentEmail !== false && (
             <div className="mb-6 p-4 bg-purple-50 border border-purple-200 rounded-lg">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                📧 Email <span className="text-red-500">*</span>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                📧 Your Email Address <span className="text-red-500">*</span>
               </label>
-              <p className="text-xs text-gray-600 mb-3">
-                This is only for sending you a confirmation that you
-                successfully filled the form.
+              <p className="text-xs text-gray-500 mb-3">
+                We'll send you a confirmation that your response was received.
               </p>
               <input
                 type="email"
                 value={respondentEmail}
-                onChange={(e) => setRespondentEmail(e.target.value)}
+                onChange={(e) => {
+                  setRespondentEmail(e.target.value);
+                  if (emailError) setEmailError("");
+                }}
                 placeholder="your.email@example.com"
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent ${
+                  emailError ? "border-red-500 bg-red-50" : "border-gray-300"
+                }`}
               />
+              {emailError && (
+                <p className="mt-1.5 text-sm text-red-600 flex items-center gap-1">
+                  <span>⚠️</span> {emailError}
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Global submit error */}
+          {errors._submit && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+              ⚠️ {errors._submit}
             </div>
           )}
 

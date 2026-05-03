@@ -20,7 +20,11 @@ import {
   Check,
   Layers,
   Edit3,
-  GitBranch
+  GitBranch,
+  X,
+  Mail,
+  ToggleLeft,
+  ToggleRight
 } from 'lucide-react';
 
 const FormBuilder = () => {
@@ -48,6 +52,7 @@ const FormBuilder = () => {
   const [showSaveSuccess, setShowSaveSuccess] = useState(false);
   const [isCreatingForm, setIsCreatingForm] = useState(false);
   const [showRulesModal, setShowRulesModal] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
   const navigationRef = useRef(false);
 
   // Form initialization effect
@@ -313,6 +318,14 @@ const FormBuilder = () => {
                 <span className="hidden lg:inline">Rules</span>
               </button>
               <button
+                onClick={() => setShowSettingsModal(true)}
+                className="hidden sm:flex items-center space-x-1 lg:space-x-2 bg-gray-100 text-gray-700 px-2 lg:px-4 py-1 lg:py-2 rounded-lg hover:bg-gray-200 transition-colors text-xs lg:text-sm border border-gray-300"
+                title="Form Settings"
+              >
+                <Settings className="w-4 h-4" />
+                <span className="hidden lg:inline">Settings</span>
+              </button>
+              <button
                 onClick={() => setShowShareModal(true)}
                 className="hidden sm:flex items-center space-x-1 lg:space-x-2 bg-green-600 text-white px-2 lg:px-4 py-1 lg:py-2 rounded-lg hover:bg-green-700 transition-colors text-xs lg:text-sm"
               >
@@ -560,6 +573,77 @@ const FormBuilder = () => {
             setShowRulesModal(false);
           }}
         />
+      )}
+
+      {/* Form Settings Modal */}
+      {showSettingsModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 px-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <div className="flex items-center gap-2">
+                <Settings className="w-5 h-5 text-purple-600" />
+                <h2 className="text-lg font-semibold text-gray-900">Form Settings</h2>
+              </div>
+              <button
+                onClick={() => setShowSettingsModal(false)}
+                className="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-lg hover:bg-gray-100"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Settings Body */}
+            <div className="px-6 py-5 space-y-5">
+
+              {/* Collect Respondent Email Toggle */}
+              <div className="flex items-start justify-between gap-4 p-4 rounded-xl border border-gray-200 hover:border-purple-200 transition-colors">
+                <div className="flex items-start gap-3">
+                  <div className="w-9 h-9 rounded-lg bg-purple-50 flex items-center justify-center flex-shrink-0">
+                    <Mail className="w-5 h-5 text-purple-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">Collect respondent email</p>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      Ask for the respondent's email at the end of the form and send them a submission confirmation.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    updateForm(currentForm.id, {
+                      collectRespondentEmail: !(currentForm.collectRespondentEmail !== false)
+                    });
+                    triggerAutoSave();
+                  }}
+                  className="flex-shrink-0 mt-0.5"
+                  title={currentForm.collectRespondentEmail !== false ? 'Turn off email collection' : 'Turn on email collection'}
+                >
+                  {currentForm.collectRespondentEmail !== false ? (
+                    <ToggleRight className="w-9 h-9 text-purple-600" />
+                  ) : (
+                    <ToggleLeft className="w-9 h-9 text-gray-400" />
+                  )}
+                </button>
+              </div>
+
+              {/* Status hint */}
+              <p className="text-xs text-gray-400 text-center">
+                Changes are saved automatically.
+              </p>
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-4 border-t border-gray-100">
+              <button
+                onClick={() => setShowSettingsModal(false)}
+                className="w-full bg-purple-600 text-white py-2.5 rounded-xl font-medium hover:bg-purple-700 transition-colors"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
